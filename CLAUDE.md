@@ -78,3 +78,25 @@ DATABASE_URL=
 - TypeScript strict mode
 - Python type hints preferred
 - Keep API endpoints RESTful
+
+## Preferred Patterns
+
+- Always use TypeScript interfaces for API responses
+- Use Supabase client from `frontend/lib/supabase.ts`
+- All API calls go through `frontend/lib/api.ts`
+- Backend routes follow REST conventions
+- Always handle loading and error states in frontend components
+
+## Do Not
+
+- Never commit `.env` files
+- Never use `any` type in TypeScript
+- Never bypass Supabase Row Level Security
+- Never hardcode URLs — use environment variables
+
+## When Adding a New Feature
+
+1. Add the endpoint to `backend/main.py`
+2. Update `frontend/lib/api.ts`
+3. Build the UI component
+4. Test locally before pushing

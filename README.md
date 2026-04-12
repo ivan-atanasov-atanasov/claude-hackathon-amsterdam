@@ -213,6 +213,18 @@ docker compose down
 
 ---
 
+## Design
+
+Figma file: [Claude Hackathon Amsterdam](https://www.figma.com/design/9QWLWfxaMseOVlmvOW4ADL/Claude-Hackathon-Amsterdam?node-id=0-1&t=gpHNh8wsSTj54arL-1)
+
+### Design Workflow
+
+1. PM creates/updates designs in Figma
+2. PM copies link to specific frame (right click → Copy link to selection)
+3. Developer pastes frame link into Claude Code to implement
+
+---
+
 ## Deployment
 
 - **Frontend** — auto-deploys to Vercel on push to `main` (when `frontend/**` changes)
