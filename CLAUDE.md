@@ -61,6 +61,15 @@ SUPABASE_KEY=
 DATABASE_URL=
 ```
 
+## CLI Tools Available
+
+- `gh` — GitHub operations (issues, PRs, repos)
+- `supabase` — database migrations, schema management (linked to project `sntteouyiwcjhctqhytf`)
+- `vercel` — frontend deployment
+- `railway` — backend deployment and logs
+- `jq` — JSON parsing
+- `curl` — API testing
+
 ## CI/CD
 
 - `.github/workflows/deploy-frontend.yml` — triggers on `frontend/**` changes pushed to `main`; uses `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` GitHub secrets
@@ -100,3 +109,23 @@ DATABASE_URL=
 2. Update `frontend/lib/api.ts`
 3. Build the UI component
 4. Test locally before pushing
+
+## Verification
+
+- Always run tests after making changes
+- Frontend: `cd frontend && npm test -- --watchAll=false`
+- Backend: `cd backend && source venv/bin/activate && pytest tests/`
+- Never mark a task done without verifying it works
+
+## Context Management
+
+- When compacting, always preserve the list of modified files
+- and any failing tests that need to be fixed
+
+## Session Management
+
+- Use `/new-feature` skill for building new features
+- Use `/fix-issue` skill for fixing GitHub issues
+- Use `/deploy` skill before any deployment
+- Use `/clear` between unrelated tasks
+- Use subagents for code review and security review

@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'f=$(jq -r \".tool_input.file_path\"); echo \"$f\" | grep -q \"/frontend/\" && (cd /Users/ivan/Documents/workplace/claude-hackathon-amsterdam/frontend && npx eslint --max-warnings=0 \"$f\" 2>&1 | head -30) || echo \"SKIP: not a frontend file\"'"
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'f=$(jq -r \".tool_input.file_path\"); echo \"$f\" | grep -q \"/backend/\" && (cd /Users/ivan/Documents/workplace/claude-hackathon-amsterdam/backend && source venv/bin/activate 2>/dev/null; python -m pytest tests/ -q --tb=short 2>&1 | tail -20) || echo \"SKIP: not a backend file\"'"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'f=$(jq -r \".tool_input.file_path\"); basename \"$f\" | grep -qE \"^\\.env$|^\\.env\\.\" && echo \"{\\\"decision\\\":\\\"block\\\",\\\"reason\\\":\\\"Writing to .env files is blocked to prevent committing secrets.\\\"}\" || echo \"SKIP: not an env file\"'"
+          }
+        ]
+      }
+    ]
+  }
+}
