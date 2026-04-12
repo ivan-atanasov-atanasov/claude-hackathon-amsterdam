@@ -4,6 +4,9 @@
 # MacOS
 .DS_Store
 
+# MCP config (contains secrets)
+.mcp.json
+
 # Environment files
 .env
 .env.*
