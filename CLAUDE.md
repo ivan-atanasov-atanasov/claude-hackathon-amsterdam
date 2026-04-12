@@ -10,12 +10,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Two independently deployed services:
 
-- **`frontend/`** — Next.js 16 (App Router) + Tailwind CSS 4, deployed to **Vercel** automatically on push to `main`
-- **`backend/`** — FastAPI + Python, deployed to **Railway** via `railway.json` using uvicorn
+- **`frontend/`** — Next.js 16 + React 19 (App Router) + Tailwind CSS 4, deployed to **Vercel** on push to `main`
+- **`backend/`** — FastAPI (Python 3.14) + uvicorn, deployed to **Railway** via `backend/railway.json`
 
-**Database/Auth:** Supabase (PostgreSQL). The backend uses the `supabase` Python client; the frontend uses `@supabase/supabase-js` via `NEXT_PUBLIC_SUPABASE_*` env vars.
+**Database/Auth:** Supabase (PostgreSQL). The backend uses the `supabase` Python client; the frontend will use `@supabase/supabase-js` via `NEXT_PUBLIC_SUPABASE_*` env vars.
 
-Frontend calls the backend at `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). CORS is configured in `backend/main.py` to allow `http://localhost:3000`.
+Frontend calls the backend at `NEXT_PUBLIC_API_URL` (default `http://localhost:8000`). CORS in `backend/main.py` currently allows only `http://localhost:3000` — add production origins when deploying.
+
+**Current state:** Both services are scaffolds. The backend exposes only `GET /health`. The frontend is the default Next.js starter.
 
 ## Development
 
@@ -24,7 +26,7 @@ Frontend calls the backend at `NEXT_PUBLIC_API_URL` (default `http://localhost:8
 ```bash
 cd frontend
 npm install
-npm run dev        # starts on http://localhost:3000
+npm run dev        # http://localhost:3000
 npm run build
 npm run lint
 ```
@@ -36,7 +38,7 @@ cd backend
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-uvicorn main:app --reload   # starts on http://localhost:8000
+uvicorn main:app --reload   # http://localhost:8000
 ```
 
 Health check: `GET http://localhost:8000/health` → `{"status": "ok"}`
@@ -51,7 +53,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-**`backend/.env`** (not committed):
+**`backend/.env`** (not committed) — loaded automatically via `python-dotenv`:
 
 ```bash
 SUPABASE_URL=
@@ -61,13 +63,15 @@ DATABASE_URL=
 
 ## CI/CD
 
-- `.github/workflows/deploy-frontend.yml` — triggers on push to `main` when `frontend/**` changes; deploys to Vercel using `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` GitHub secrets
-- Backend deploys via Railway connected to the repo (uses `backend/railway.json`)
+- `.github/workflows/deploy-frontend.yml` — triggers on `frontend/**` changes pushed to `main`; uses `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` GitHub secrets
+- Backend deploys via Railway connected to the repo; start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
 
 ## Important Notes
 
-- **Next.js 16 has breaking changes** — APIs, conventions, and file structure differ from older versions. Read `node_modules/next/dist/docs/` before writing frontend code; do not rely on pre-2025 Next.js patterns.
-- **Backend env vars** — `python-dotenv` is installed; add `from dotenv import load_dotenv; load_dotenv()` at the top of `main.py` before accessing `os.environ` for Supabase credentials.
+- **Next.js 16 + React 19 have breaking changes** — read `frontend/AGENTS.md` and `node_modules/next/dist/docs/` before writing frontend code. Do not rely on pre-2025 Next.js/React patterns.
+- **Use `proxy.ts` instead of `middleware.ts`** in Next.js 16 for request interception, auth gates, and rewrites.
+- **Tailwind CSS 4** — configuration is in `postcss.config.mjs`, not `tailwind.config.js`. The v4 API differs significantly from v3.
+- **Backend Supabase access** — `python-dotenv` is configured; credentials come from `backend/.env` via `load_dotenv()`.
 
 ## Code Style
 
