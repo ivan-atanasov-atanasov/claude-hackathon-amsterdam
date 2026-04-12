@@ -177,6 +177,42 @@ Both services should now be running:
 
 ---
 
+## Quick start with Docker
+
+If you have [Docker Desktop](https://www.docker.com/products/docker-desktop/) installed, you can run both services with two commands instead of following the full guide above.
+
+### Step 1 — Install Docker Desktop
+
+Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/) for your OS. Once installed, open it and wait for the whale icon in your menu bar to stop animating — that means Docker is ready.
+
+### Step 2 — Create your .env file
+
+Copy the example env file at the root of the project:
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` in a text editor and fill in your Supabase credentials (see Step 5 of the manual guide above for where to find these).
+
+### Step 3 — Start everything
+
+From the root of the project:
+
+```bash
+docker compose up --build
+```
+
+Both services will build and start. Once you see `Application startup complete` in the logs, open <http://localhost:3000> in your browser.
+
+To stop everything, press `Ctrl + C` in the terminal, then run:
+
+```bash
+docker compose down
+```
+
+---
+
 ## Deployment
 
 - **Frontend** — auto-deploys to Vercel on push to `main` (when `frontend/**` changes)
