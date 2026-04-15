@@ -129,3 +129,24 @@ DATABASE_URL=
 - Use `/deploy` skill before any deployment
 - Use `/clear` between unrelated tasks
 - Use subagents for code review and security review
+
+## PRD and Implementation Workflow
+
+- Use `/write-prd` to create the PRD interactively with the PM
+- PRD is saved to both `docs/PRD.md` and `.taskmaster/docs/prd.txt`
+- Run: `task-master parse-prd .taskmaster/docs/prd.txt` to break into tasks
+- Run: `task-master analyze-complexity` to score each task
+- Run: `task-master next` to get the next task to implement
+- For complex tasks (complexity 7+): use `/opsx:propose [feature-name]` before building
+- For simple tasks (complexity <7): implement directly with Claude Code
+- After finishing a task: `task-master complete --id=X` then `task-master next`
+- Use `/opsx:archive` after each OpenSpec feature is done
+
+## Hackathon Flow
+
+```
+Hour 0-1:  /write-prd [idea] → docs/PRD.md + .taskmaster/docs/prd.txt
+Hour 1:    task-master parse-prd → tasks.json
+           task-master analyze-complexity → complexity scores
+Hour 1+:   task-master next → implement → complete → repeat
+```
