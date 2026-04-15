@@ -144,7 +144,7 @@ DATABASE_URL=
 
 ## Hackathon Flow
 
-```
+```text
 Hour 0-1:  /write-prd [idea] → docs/PRD.md + .taskmaster/docs/prd.txt
 Hour 1:    task-master parse-prd → tasks.json
            task-master analyze-complexity → complexity scores
