@@ -10,7 +10,7 @@ export default function Home() {
         {/* Headline */}
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 leading-tight">
-            Something meaningful<br />is coming.
+            Something meaningful<br />is coming 💛
           </h1>
           <p className="text-lg text-zinc-500 dark:text-zinc-400 leading-relaxed">
             We&apos;re building a tool for people who are too often left behind —
@@ -28,7 +28,7 @@ export default function Home() {
             The team
           </p>
           <p className="text-base text-zinc-700 dark:text-zinc-300 font-medium">
-            Ivan &amp; Vivienne
+            GitGood — Ivan &amp; Vivienne
           </p>
         </div>
       </main>
