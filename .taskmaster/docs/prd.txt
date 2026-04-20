@@ -1,0 +1,182 @@
+AMSTERDAM CLIMATE RISK DASHBOARD - PRD
+======================================
+Working title: KlimaatKaart
+Hackathon: Whale x Anthropic Claude Code - Amsterdam (April 25-26, 2026)
+
+OVERVIEW
+--------
+An integrated climate risk dashboard for Amsterdam city planners that combines
+heat stress, flood risk, drought vulnerability, and vulnerable population data
+into a single map-based interface. Enables data-driven prioritization of climate
+adaptation investments by neighborhood.
+
+PROBLEM STATEMENT
+-----------------
+Amsterdam city planners need to prioritize climate adaptation investments across
+100+ neighborhoods, but critical data is fragmented:
+
+- Heat stress maps: Klimaateffectatlas (separate system)
+- Flood/drought risk: maps.amsterdam.nl (separate GeoJSON layers)
+- Vulnerable population: GGD/CBS (separate demographic databases)
+- Municipal heat response: Amsterdams Hitteplan (PDF protocols)
+
+Planners cannot easily answer: "Which neighborhoods should we prioritize for
+intervention, considering compound climate AND social vulnerability risk?"
+
+CLIMATE CONTEXT (KNMI'14 Projections for 2050)
+----------------------------------------------
+- Summer temperature: +1 to +2.3C (more heat waves)
+- Winter precipitation: +3 to +17% (sewer overload)
+- Sea level rise: +15 to +40 cm (flood risk)
+- Extreme rainfall: More intense (flash flooding)
+- Summer drought: Longer dry periods
+
+VULNERABLE POPULATIONS (from Hitteplan)
+---------------------------------------
+- Elderly (65+), especially living alone
+- Chronically ill
+- Young children
+- Homeless (dak- en thuislozen)
+- Outdoor workers
+- People in poverty
+- People with small social networks
+
+TARGET USER
+-----------
+Municipal Climate Adaptation Planner at Gemeente Amsterdam
+
+Key need: "Show me which neighborhoods have the highest COMPOUND risk
+(heat + flood + vulnerable population) so I can defend my budget allocation."
+
+MVP FEATURES (P0 - Must Have)
+-----------------------------
+1. INTERACTIVE MAP WITH TOGGLEABLE LAYERS
+   - Amsterdam neighborhood boundaries
+   - Toggle: Heat stress | Flood risk | Drought | Vulnerable population
+   - Visual overlay for compound risk intensity
+   - Source: WMS tiles from Klimaateffectatlas + Amsterdam GeoJSON
+
+2. NEIGHBORHOOD RISK RANKING TABLE
+   - Sortable list of all neighborhoods
+   - Columns: Name | Heat | Flood | Vulnerability | Combined score
+   - Click row to zoom to neighborhood on map
+
+3. NEIGHBORHOOD DETAIL PANEL
+   - Click neighborhood -> side panel with:
+   - Individual risk scores breakdown
+   - Key statistics (population, % elderly, housing age)
+   - Risk trend indicator for 2050
+
+4. SCENARIO TOGGLE
+   - Switch between "Current" and "2050 Projection"
+   - Visual indication of risk changes
+
+NICE TO HAVE (P1)
+-----------------
+5. Risk threshold alerts (highlight neighborhoods > threshold)
+6. Export/share functionality
+
+OUT OF SCOPE
+------------
+- User accounts/authentication
+- Real-time weather integration
+- Mobile optimization
+- Multi-language support
+- Historical trend analysis
+- Integration with municipal systems
+
+TECHNICAL STACK
+---------------
+Frontend: Next.js 16 + React 19 + Tailwind CSS 4
+Map: Leaflet + react-leaflet (or Mapbox GL JS)
+Backend: FastAPI (Python 3.14)
+Database: Supabase (PostgreSQL)
+External: WMS from Klimaateffectatlas
+Deploy: Vercel (frontend) + Railway (backend)
+
+DATA SOURCES
+------------
+| Layer                  | Source              | Format  |
+|------------------------|---------------------|---------|
+| Heat stress            | Klimaateffectatlas  | WMS     |
+| Urban Heat Island      | Atlas Leefomgeving  | WMS     |
+| Flood risk             | Klimaateffectatlas  | WMS     |
+| Drought risk           | Klimaateffectatlas  | WMS     |
+| Neighborhood bounds    | maps.amsterdam.nl   | GeoJSON |
+| Vulnerable population  | Mock (CBS patterns) | JSON    |
+| 2050 projections       | KNMI'14 multipliers | Calc    |
+
+API ENDPOINTS
+-------------
+GET  /health
+GET  /api/neighborhoods
+GET  /api/neighborhoods/:id
+GET  /api/neighborhoods/:id/risks
+GET  /api/rankings?sort_by=combined
+GET  /api/scenarios
+POST /api/rankings/calculate
+
+DATABASE SCHEMA
+---------------
+neighborhoods:
+  - id, code, name, district, geometry (GeoJSON), population, area_km2
+
+risk_scores:
+  - id, neighborhood_id, scenario, heat_score, flood_score,
+    drought_score, vulnerability_score, combined_score
+
+vulnerability_factors:
+  - id, neighborhood_id, elderly_pct, low_income_pct,
+    single_person_households_pct, poor_housing_pct, green_space_m2_per_capita
+
+USER STORIES
+------------
+US1: View compound risk map - see heat, flood, vulnerability on one map
+US2: Rank neighborhoods by risk - sortable table with combined scores
+US3: Inspect neighborhood details - click for risk breakdown
+US4: Compare current vs future - toggle 2050 projections
+
+SUCCESS CRITERIA
+----------------
+Demo "wow moments":
+1. "Finally, one map" - all layers on single view
+2. "I can rank neighborhoods" - sorted priority list
+3. "2050 is scary" - future scenario shows risk increase
+4. "Click and understand" - detail panel explains WHY
+
+Technical:
+- Map loads < 3 seconds
+- All 100+ neighborhoods with scores
+- 4 layers toggleable
+- Current vs 2050 toggle works
+- No critical bugs in demo
+
+COMPOUND RISK FORMULA (Proposed)
+--------------------------------
+combined_score = (
+  0.35 * heat_score +
+  0.25 * flood_score +
+  0.15 * drought_score +
+  0.25 * vulnerability_score
+)
+
+OPEN QUESTIONS
+--------------
+1. Risk weighting formula - equal weights or heat-focused?
+2. Neighborhood granularity - buurten (~400) or wijken (~100)?
+3. 2050 projection method - uniform multipliers or varied?
+4. Map library - Leaflet or Mapbox?
+5. Demo data coverage - full Amsterdam or focus districts?
+
+REFERENCES
+----------
+- Klimaateffectatlas: https://www.klimaateffectatlas.nl/nl/kaartviewer
+- Atlas Leefomgeving UHI: https://www.atlasleefomgeving.nl/stedelijk-hitte-eiland-effect-uhi
+- Amsterdam maps: https://maps.amsterdam.nl/klimaatadaptatie/
+- KNMI'14: https://www.knmi.nl/nederland-nu/KNMI14_klimaatscenarios/kerncijfers
+- Amsterdams Hitteplan 2024 (PDF)
+
+---
+Version: DRAFT 0.1
+Last updated: 2026-04-20
+Status: Awaiting user flow confirmation and technical decisions
