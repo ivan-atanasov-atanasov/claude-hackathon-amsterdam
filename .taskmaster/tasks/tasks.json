@@ -1,0 +1,140 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Set up Supabase database schema and seed Amsterdam safety data",
+        "description": "Create database tables (lighting_points, incidents, hotspots, safety_grid) and import real Amsterdam open data for street lighting and incidents, plus curated hotspot polygons",
+        "details": "1. Create Supabase migration files for all four tables per PRD schema:\n   - `lighting_points`: id (uuid), lat, lng, type, imported_at\n   - `incidents`: id (uuid), lat, lng, category, occurred_at, imported_at\n   - `hotspots`: id (uuid), kind (enum: park/square/station), name, geometry (jsonb GeoJSON)\n   - `safety_grid`: id (uuid), grid_x, grid_y, lat, lng, lighting_score, incident_score, hotspot_penalty, updated_at\n2. Write Python data import script in `backend/scripts/import_data.py`:\n   - Fetch Amsterdam lighting dataset from maps.amsterdam.nl/lichtpunten/\n   - Fetch incidents from onderzoek.amsterdam.nl (Openbare Orde, last 24 months)\n   - Manually curate ~10-15 hotspot polygons (Vondelpark, Leidseplein, Centraal Station, etc.)\n   - Insert into Supabase using supabase-py client\n3. Pre-compute safety_grid (~100m cells covering Amsterdam):\n   - Calculate lighting_score per cell (density of nearby lights)\n   - Calculate incident_score per cell (inverted density, 0–1)\n   - Calculate hotspot_penalty (0.05–0.15 based on polygon overlap)\n4. Add RLS policies (read-only for anon key)\n5. Document data sources and update timestamps in script",
+        "testStrategy": "Run migration and import script; verify row counts match expected (lighting_points >10k, incidents >500, hotspots ~15, safety_grid >5000 for Amsterdam bbox). Query random grid cells and validate scores are 0.0–1.0. Test RLS by attempting write with anon key (should fail).",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Implement backend safety scoring engine and route selection",
+        "description": "Build core safety scoring algorithm with time-of-day weighting and deterministic route selection from Google Directions alternatives",
+        "details": "1. Create `backend/services/safety_scorer.py`:\n   - Function `compute_cell_score(grid_cell, departure_time)` using PRD formula:\n     cell_score = w_light * lighting_score + w_incident * incident_score + w_traffic * traffic_score(time) - hotspot_penalty_at_time(time)\n   - Time-of-day weights per PRD table (06:00-20:00 / 20:00-23:00 / 23:00-06:00)\n   - `traffic_score(time, street_type)` heuristic: high for main roads during daytime, low for side streets at night\n   - Function `score_route(polyline, departure_time)`: decode polyline, snap to grid cells, compute mean score, scale to 0–10\n2. Create `backend/services/route_selector.py`:\n   - Function `get_safest_route(start_lat, start_lng, dest_lat, dest_lng, departure_time, mode)`: \n     - Call Google Directions API (cycling or walking, alternatives=true, up to 3 routes)\n     - Score each route using safety_scorer\n     - Return highest-scoring route with breakdown\n3. Add environment vars: `GOOGLE_MAPS_API_KEY`\n4. Use `polyline` library for decoding; `shapely` for geometry ops\n5. Cache grid lookups in-memory for performance",
+        "testStrategy": "Unit test scoring with known grid cells and times; verify time-of-day weights apply correctly. Integration test with mock Google Directions responses (3 routes) and verify deterministic selection. Test edge cases: same departure location/destination, routes crossing multiple hotspot types.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement Claude AI narration and contextual safety tips",
+        "description": "Build AI service to generate plain-language route explanation and 3–5 personalized safety tips using Claude Sonnet 4.6 with prompt caching",
+        "details": "1. Create `backend/services/ai_narrator.py`:\n   - Initialize Anthropic SDK client with `claude-sonnet-4-6` model\n   - System prompt (cached): \"You generate concise safety-focused route explanations and tips for women cycling/walking in Amsterdam at night. Input: route summary, safety scores, time, mode, hotspots crossed. Output: 2-3 sentence explanation + 3-5 specific tips.\"\n   - Function `generate_explanation_and_tips(route_data, safety_breakdown, departure_time, mode, hotspots_passed)` → (explanation: str, tips: list[str])\n   - Hard timeout: 2s using asyncio.wait_for\n   - On error/timeout: return `ai_status: \"fallback\"` with empty explanation and static tip list\n2. Static fallback tips in `backend/config/fallback_tips.py`: 5 generic tips (share location, stay visible, trust instincts, etc.)\n3. Environment var: `ANTHROPIC_API_KEY`\n4. Enable prompt caching on system prompt per Anthropic SDK docs\n5. Log AI latency and error rate for monitoring",
+        "testStrategy": "Test with real route data; verify 2s timeout enforced. Test fallback triggers on API error. Verify tips change when: (a) time changes day→night, (b) mode changes cycling→walking, (c) different hotspot types passed. Measure p95 latency <2s with prompt caching.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Build backend API endpoints for routes, safety, and tips",
+        "description": "Implement FastAPI endpoints: GET /routes, GET /safety, GET /tips with request validation and error handling",
+        "details": "1. Create Pydantic models in `backend/models/schemas.py`:\n   - `RouteRequest`: from (str), to (str), time (datetime, default now()), mode (enum: cycling/walking)\n   - `RouteResponse`: route (polyline, distance_m, duration_min, safety_score, safety_breakdown), explanation, tips, ai_status\n   - `SafetyRequest`: lat, lng, radius (m), time\n   - `SafetyResponse`: safety_score, breakdown\n   - `TipsRequest`: time, mode, hotspots (list[str])\n   - `TipsResponse`: tips, ai_status\n2. Implement routes in `backend/routes/routes.py`:\n   - `GET /routes`: geocode addresses (or use lat/lng if provided), call route_selector, call ai_narrator, return RouteResponse\n   - `GET /safety`: query grid cells in radius, compute weighted score at given time, return SafetyResponse\n   - `GET /tips`: regenerate tips using ai_narrator without re-routing, return TipsResponse\n3. Add error handling: 400 for invalid input, 500 for service errors, 504 for AI timeout\n4. Register routes in `backend/main.py`\n5. Add geocoding via Google Geocoding API or use lat/lng directly",
+        "testStrategy": "Test each endpoint with valid and invalid inputs. Verify /routes returns 200 with all fields populated. Test /safety with known grid cell. Test /tips regeneration without changing route. Verify error codes for bad requests and service failures.",
+        "priority": "high",
+        "dependencies": [
+          3
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Build frontend route input form with Google Maps Autocomplete",
+        "description": "Create Next.js page with form for start/destination (Google Places Autocomplete), departure time picker, and mode selector (cycling/walking)",
+        "details": "1. Install `@googlemaps/js-api-loader` for Maps JavaScript API\n2. Create `frontend/components/RouteForm.tsx`:\n   - Two autocomplete inputs for start/destination using Google Places Autocomplete (restrict to Amsterdam bbox: 52.2–52.5N, 4.7–5.1E)\n   - Time picker with default \"now\" and visual indicator for day/evening/night\n   - Mode toggle: cycling (default) / walking\n   - Submit button triggers API call to backend `/routes`\n3. Add `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` env var\n4. Use React 19 `useActionState` or `useTransition` for form submission\n5. Show loading state during API call (disable form, spinner)\n6. Handle errors gracefully (API failure, geocoding failure)\n7. Update `frontend/app/page.tsx` to render RouteForm",
+        "testStrategy": "Test autocomplete suggestions appear for Amsterdam addresses. Verify time picker defaults to current time. Test mode toggle switches between cycling/walking. Test form validation (empty inputs, invalid addresses). Verify loading state appears during submission.",
+        "priority": "high",
+        "dependencies": [
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Build frontend route results display with map and safety breakdown",
+        "description": "Create results component showing selected route on Google Map, safety score gauge, breakdown bars, AI explanation, and contextual tips",
+        "details": "1. Create `frontend/components/RouteResults.tsx`:\n   - Google Map (via `@googlemaps/js-api-loader`) displaying route polyline, start/end markers\n   - Safety score: large 0–10 display with color gradient (red <5, yellow 5–7, green 7–10)\n   - Safety breakdown: 3 horizontal bars (lighting / incidents / traffic) with labels and scores\n   - Hotspots passed: chips/badges for each type (park, square, station)\n   - AI explanation: 2-3 sentence text in card\n   - Safety tips: numbered list (3-5 items) in card\n   - \"Open in Google Maps\" button: constructs deep link `https://www.google.com/maps/dir/?api=1&origin={lat,lng}&destination={lat,lng}&travelmode={driving|walking|bicycling}`\n   - \"Share route\" button (P1 — render but disable for MVP)\n2. Create `frontend/types/api.ts` for RouteResponse interface\n3. Conditional rendering: show AI explanation only if `ai_status === \"ok\"`, otherwise show \"AI unavailable\" notice\n4. Update page.tsx to render RouteResults when API returns data",
+        "testStrategy": "Test with mock RouteResponse data. Verify map renders polyline correctly. Test score color gradient. Verify AI explanation hides when ai_status is \"fallback\". Test \"Open in Google Maps\" deep link opens correct route and mode. Verify responsive layout on mobile.",
+        "priority": "high",
+        "dependencies": [
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Add time-aware dynamic tip regeneration on time change",
+        "description": "Allow user to change departure time on results page and see updated safety score and tips without re-fetching route",
+        "details": "1. Add time picker to RouteResults component (same as RouteForm)\n2. On time change:\n   - Call backend `GET /tips?time={new_time}&mode={mode}&hotspots={hotspots_passed}` to regenerate tips\n   - Optionally re-score the same route by calling a new endpoint `POST /score-route` with polyline + new time (or do this client-side if grid data is static)\n3. Update UI: smoothly transition score gauge and tips list\n4. Show loading indicator during tip regeneration (spinner on tips card)\n5. Debounce time picker changes (500ms) to avoid excessive API calls",
+        "testStrategy": "Test changing time from day→evening→night and verify tips change content. Verify safety score updates to reflect new time-of-day weights. Test debounce works (no API call until 500ms after last change). Verify loading states.",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Create landing page with grounding stats and NGO attribution",
+        "description": "Design and implement landing page highlighting the problem (78% fear stat), solution, and NGO partner *Wij eisen de nacht op*",
+        "details": "1. Update `frontend/app/page.tsx` to show landing page before route form:\n   - Hero: \"NachtRoute — The safest way home\" with tagline\n   - Problem statement card: \"78% of young women in Amsterdam have been afraid while cycling at night\" (cite: Gemeente Amsterdam survey 2025)\n   - How it works: 3 steps (Enter route → See safest path → Get safety tips)\n   - \"Start planning\" CTA button → shows route form\n   - Footer: NGO attribution (\"Built in partnership with *Wij eisen de nacht op*\"), data sources (Amsterdam Open Data), disclaimer (\"Simulated foot traffic data\")\n2. Use Tailwind CSS 4 for styling (review `postcss.config.mjs` for v4 syntax)\n3. Add favicon and update metadata in layout.tsx (title: \"NachtRoute — Safe routes for women in Amsterdam\")\n4. Optional: add simple animation on scroll (hero fade-in)",
+        "testStrategy": "Visual QA on desktop and mobile. Verify stat is accurate (78% per PRD). Test CTA button shows route form. Verify NGO link opens https://wijeisendenachtop.nl. Check metadata renders in browser tab.",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Add comprehensive error handling and fallback UI states",
+        "description": "Implement user-friendly error messages, empty states, and fallback behaviors for all failure modes (API errors, AI timeout, no routes found, geocoding failures)",
+        "details": "1. Create `frontend/components/ErrorBoundary.tsx` using React 19 error boundaries\n2. Add error states to RouteForm:\n   - Geocoding failure: \"Address not found in Amsterdam\"\n   - API timeout: \"Request took too long, please try again\"\n   - No routes found: \"No safe route available for this trip\"\n   - Network error: \"Cannot connect to server\"\n3. Add fallback UI for RouteResults:\n   - If ai_status === \"fallback\", show notice: \"AI explanation unavailable — showing general safety tips\"\n   - If map fails to load, show static image with route description\n4. Backend: ensure all endpoints return consistent error format: `{\"error\": \"message\", \"code\": \"ERROR_CODE\"}`\n5. Add retry logic for transient failures (exponential backoff, max 3 retries)\n6. Log errors to console for debugging (avoid exposing API keys)",
+        "testStrategy": "Test each error scenario: (a) disconnect backend, verify network error shows; (b) mock AI timeout, verify fallback tips render; (c) enter invalid address, verify geocoding error; (d) test with intentionally bad Google Maps key, verify map fallback. Verify retry logic works for transient failures.",
+        "priority": "medium",
+        "dependencies": [
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Deploy to production and validate end-to-end demo flow",
+        "description": "Deploy frontend to Vercel, backend to Railway, configure production environment variables, and run full demo scenario",
+        "details": "1. Deploy backend to Railway:\n   - Set environment variables: SUPABASE_URL, SUPABASE_KEY, DATABASE_URL, GOOGLE_MAPS_API_KEY, ANTHROPIC_API_KEY\n   - Verify start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`\n   - Run database migration on Railway instance\n   - Test `/health` endpoint returns 200\n2. Deploy frontend to Vercel:\n   - Set environment variables: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_API_URL (Railway backend URL), NEXT_PUBLIC_GOOGLE_MAPS_API_KEY\n   - Update backend CORS to include Vercel domain\n   - Verify build succeeds and site loads\n3. End-to-end demo validation:\n   - Enter route: Centraal Station → Vondelpark, departure 23:00, cycling\n   - Verify route appears on map with safety score 0–10\n   - Verify AI explanation renders within 2s p95\n   - Verify tips include Vondelpark-specific advice\n   - Change time to 14:00, verify score and tips update\n   - Test \"Open in Google Maps\" deep link works on mobile\n   - Test walking mode shows different tips\n4. Performance check: measure p95 latency for `/routes` endpoint <5s\n5. Document production URLs in README",
+        "testStrategy": "Run demo scenario 5 times with different start/destination pairs. Verify all features work in production. Test on mobile browser (iOS Safari, Android Chrome). Measure and document p95 latency. Check error logging in Railway/Vercel dashboards.",
+        "priority": "high",
+        "dependencies": [
+          8,
+          9
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2026-04-21T20:00:56.525Z",
+      "updated": "2026-04-21T20:00:56.525Z",
+      "description": "Tasks for master context"
+    }
+  }
+}
