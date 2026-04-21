@@ -1,8 +1,8 @@
 {
   "models": {
     "main": {
-      "provider": "anthropic",
-      "modelId": "claude-sonnet-4-20250514",
+      "provider": "claude-code",
+      "modelId": "claude-sonnet-4-5-20250929",
       "maxTokens": 64000,
       "temperature": 0.2
     },
@@ -31,7 +31,8 @@
     "responseLanguage": "English",
     "enableCodebaseAnalysis": true,
     "enableProxy": false,
-    "anonymousTelemetry": true
+    "anonymousTelemetry": true,
+    "userId": "1234567890"
   },
   "claudeCode": {},
   "codexCli": {},
