@@ -31,10 +31,11 @@ Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 
 ## MVP Features (prioritized)
 
 1. **Route input** — enter start address, destination, and departure time (defaults to right now)
-2. **Safest route** — single route optimized for safety, showing estimated cycling time
-3. **Safety score** — route scored on lighting coverage, incident history, and foot traffic for the selected time
-4. **"Open in Google Maps"** — one tap to launch the route in Google Maps
-5. **Time-aware scoring** — safety score adjusts based on departure time (darker = less safe at night, busier = safer during rush hour)
+2. **Mode selection** — choose between cycling or walking
+3. **Safest route** — single route optimized for safety, showing estimated travel time for the selected mode
+4. **Safety score** — route scored on lighting coverage, incident history, and foot traffic for the selected time
+5. **"Open in Google Maps"** — one tap to launch the route in Google Maps
+6. **Time-aware scoring** — safety score adjusts based on departure time (darker = less safe at night, busier = safer during rush hour)
 
 ---
 
@@ -66,7 +67,7 @@ Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check |
-| GET | `/routes?from={address}&to={address}&time={datetime}` | Returns safest route with safety score and travel time |
+| GET | `/routes?from={address}&to={address}&time={datetime}&mode={cycling\|walking}` | Returns safest route with safety score and travel time |
 | GET | `/safety?lat={lat}&lng={lng}&radius={m}&time={datetime}` | Returns safety score for a location at a given time |
 
 ---
