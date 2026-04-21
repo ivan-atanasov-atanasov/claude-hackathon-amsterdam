@@ -129,11 +129,22 @@
         ],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Make frontend a PWA with mobile-responsive design",
+        "description": "Convert the Next.js frontend into a Progressive Web App (PWA) with full mobile-responsive design. Add a web manifest, service worker for offline support, and ensure all UI components are mobile-first and work well on small screens.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2026-04-21T20:00:56.525Z",
-      "updated": "2026-04-21T20:00:56.525Z",
+      "updated": "2026-04-21T20:11:05.774Z",
       "description": "Tasks for master context"
     }
   }
