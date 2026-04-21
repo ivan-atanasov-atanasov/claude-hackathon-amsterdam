@@ -2,7 +2,7 @@
 
 ## Overview
 
-NachtRoute is a cycling route planner for women in Amsterdam that prioritizes safety over speed. Enter a start, destination, and departure time — get two routes side by side (safest vs. fastest) with travel time, scored on real Amsterdam open data: street lighting, reported incidents, and foot traffic. One tap to open in Google Maps.
+NachtRoute is a cycling route planner for women in Amsterdam that prioritizes safety over speed. Enter a start, destination, and departure time — get the safest cycling route with estimated travel time, scored on real Amsterdam open data: street lighting, reported incidents, and foot traffic. One tap to open in Google Maps.
 
 Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 25–26, 2026), in support of NGO **Wij eisen de nacht op**.
 
@@ -31,9 +31,9 @@ Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 
 ## MVP Features (prioritized)
 
 1. **Route input** — enter start address, destination, and departure time (defaults to right now)
-2. **Two routes side by side** — Safest route vs. Fastest route, each showing estimated cycling time
-3. **Safety score** — each route scored on lighting coverage, incident history, and foot traffic for the selected time
-4. **"Open in Google Maps"** — one tap to launch the safest route in Google Maps
+2. **Safest route** — single route optimized for safety, showing estimated cycling time
+3. **Safety score** — route scored on lighting coverage, incident history, and foot traffic for the selected time
+4. **"Open in Google Maps"** — one tap to launch the route in Google Maps
 5. **Time-aware scoring** — safety score adjusts based on departure time (darker = less safe at night, busier = safer during rush hour)
 
 ---
@@ -42,8 +42,7 @@ Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 
 
 - As a woman about to cycle home, I open NachtRoute, enter my start and destination, and instantly see the safest route with an estimated travel time so I can leave feeling confident.
 - As a woman planning ahead, I set a future departure time and see how the safety score changes compared to cycling right now.
-- As a user, I can see both the safest and fastest route side by side so I can consciously choose between time and safety.
-- As a user, I tap "Open in Google Maps" and my chosen route launches immediately so I don't have to retype anything.
+- As a user, I tap "Open in Google Maps" and my safest route launches immediately so I don't have to retype anything.
 
 ---
 
@@ -67,7 +66,7 @@ Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check |
-| GET | `/routes?from={address}&to={address}&time={datetime}` | Returns safest + fastest route with safety scores and travel times |
+| GET | `/routes?from={address}&to={address}&time={datetime}` | Returns safest route with safety score and travel time |
 | GET | `/safety?lat={lat}&lng={lng}&radius={m}&time={datetime}` | Returns safety score for a location at a given time |
 
 ---
@@ -137,8 +136,8 @@ Route safety score = average safety score across all grid cells the route passes
 ## Success Criteria
 
 At the demo:
-1. Enter a start + destination in Amsterdam → see two routes (safest + fastest) with travel times in under 5 seconds
-2. Safety score visibly differs between the two routes
+1. Enter a start + destination in Amsterdam → see the safest route with travel time in under 5 seconds
+2. Safety score is clearly visible and explained
 3. Changing departure time from midday to midnight changes the safety score
 4. "Open in Google Maps" launches the correct cycling route instantly
 5. A non-technical person understands the product in under 30 seconds
