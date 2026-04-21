@@ -2,7 +2,7 @@
 
 ## Overview
 
-NachtRoute is a cycling route planner for women in Amsterdam that prioritizes safety over speed. Enter a start, destination, and departure time — get the safest cycling route with estimated travel time, scored on real Amsterdam open data: street lighting, reported incidents, and foot traffic. One tap to open in Google Maps.
+NachtRoute is a cycling and walking route planner for women in Amsterdam that prioritizes safety over speed. Enter a start, destination, departure time, and travel mode — get the safest route with estimated travel time, scored on real Amsterdam open data: street lighting, reported incidents, and foot traffic. One tap to open in Google Maps.
 
 Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 25–26, 2026), in support of NGO **Wij eisen de nacht op**.
 
@@ -10,7 +10,7 @@ Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 
 
 ## Problem Statement
 
-> *Women in Amsterdam avoid cycling at night because they don't know which route is safe. Google Maps optimizes for speed — not safety. No tool exists that routes women through well-lit, busy streets with low incident history.*
+> *Women in Amsterdam avoid cycling or walking at night because they don't know which route is safe. Google Maps optimizes for speed — not safety. No tool exists that routes women through well-lit, busy streets with low incident history, whether they're on a bike or on foot.*
 
 ---
 
