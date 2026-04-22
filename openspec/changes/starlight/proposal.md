@@ -6,7 +6,7 @@ Build Starlight: a safe cycling and walking route planner for women in Amsterdam
 Route selection is fully deterministic. Claude is used only to narrate the chosen route and generate tips — never to pick the route.
 
 ## Why
-Gemeente Amsterdam's *Sociale veiligheid op de fiets 2025* survey found that **78% of young women have been afraid on the bike**, **47%** of all adult cyclists fear harassment, and **~50%** already avoid certain routes. Women's top-requested fixes are better lighting and safer routes. Google Maps optimizes for speed. No tool currently routes women through well-lit, low-incident streets. Starlight closes that gap using data the municipality already publishes.
+Gemeente Amsterdam's *Sociale veiligheid op de fiets 2025* survey found that **78% of young women have been afraid on the bike**, **47%** of all adult cyclists fear harassment, and **~50%** already avoid certain routes. Women's top-requested fixes are better lighting and safer routes. No existing tool routes women through well-lit, low-incident streets. Starlight closes that gap using data the municipality already publishes.
 
 ## NGO Partner
 **Wij eisen de nacht op** (wijeisendenachtop.nl) — campaign for women's right to move freely through public spaces at any time.
