@@ -2,7 +2,7 @@
 
 ## Overview
 
-Starlight is a route planner that helps women in Amsterdam get home safely. Enter a start, destination, departure time, and travel mode — get the single safest route with estimated travel time, chosen from real Amsterdam open data (street lighting, reported incidents, foot traffic) and with a plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
+Starlight is a route planner that helps women in Amsterdam travel safely between any two points. Enter a start, destination, departure time, and travel mode — get the single safest route with estimated travel time, chosen from real Amsterdam open data (street lighting, reported incidents, foot traffic) and with a plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
 
 Route selection is **fully deterministic**. Claude is used only to narrate the chosen route and generate personalized tips — never to pick the route.
 
