@@ -1,4 +1,4 @@
-# Tasks — NachtRoute
+# Tasks — Starlight
 
 ## Implementation Order
 
@@ -15,7 +15,7 @@
 - Note: `traffic_score` is computed per request, not stored
 
 **Files:**
-- `backend/migrations/001_nachtroute_schema.sql`
+- `backend/migrations/001_starlight_schema.sql`
 - `backend/scripts/seed_lighting.py`
 - `backend/scripts/seed_incidents.py`
 - `backend/scripts/seed_hotspots.py`
@@ -128,7 +128,7 @@
 **Complexity:** Low | **Est:** 1h
 
 - Mobile-friendly layout pass
-- NachtRoute branding + tagline on home page
+- Starlight branding + tagline on home page
 - "Powered by open Amsterdam data" footer with source links
 - Smoke test the demo script end-to-end
 

@@ -1,8 +1,8 @@
-# PRD — NachtRoute
+# PRD — Starlight
 
 ## Overview
 
-NachtRoute is a cycling and walking route planner for women in Amsterdam that prioritizes **safety over speed**. Enter a start, destination, departure time, and travel mode — get the single safest route with estimated travel time, scored on real Amsterdam open data (street lighting, reported incidents, foot traffic) and with a plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
+Starlight is a cycling and walking route planner for women in Amsterdam that prioritizes **safety over speed**. Enter a start, destination, departure time, and travel mode — get the single safest route with estimated travel time, scored on real Amsterdam open data (street lighting, reported incidents, foot traffic) and with a plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
 
 Route selection is **fully deterministic**. Claude is used only to narrate the chosen route and generate personalized tips — never to pick the route.
 
@@ -24,7 +24,7 @@ Grounding from Gemeente Amsterdam's *Sociale veiligheid op de fiets 2025* survey
 | Cyclists who can name a specific location where they were harassed | **22%** |
 | Cyclists who already avoid certain routes | **~50%** |
 
-Hotspot types named in the report: **parks, entertainment squares, train stations** — distributed across the whole city, not one district. Women's top-requested fixes are **better lighting, safer cycling routes, and awareness**. Women more often than men mitigate by sharing live location or switching transport mode. NachtRoute directly addresses the top two asks.
+Hotspot types named in the report: **parks, entertainment squares, train stations** — distributed across the whole city, not one district. Women's top-requested fixes are **better lighting, safer cycling routes, and awareness**. Women more often than men mitigate by sharing live location or switching transport mode. Starlight directly addresses the top two asks.
 
 ---
 
@@ -35,7 +35,7 @@ Hotspot types named in the report: **parks, entertainment squares, train station
 - Cycling or walking
 - Planning ahead from home, or deciding in the moment before leaving
 - Wants to feel confident without doing manual research
-- Already uses Google Maps — NachtRoute hands off into it, not competing
+- Already uses Google Maps — Starlight hands off into it, not competing
 
 **Jobs to be done:** *pick a route I trust → share it if I want → leave on time.*
 
