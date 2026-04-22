@@ -1,4 +1,4 @@
-# Design — NachtRoute
+# Design — Starlight
 
 ## Architecture
 
@@ -29,7 +29,7 @@ Backend (FastAPI)
 ## Key Design Decisions
 
 ### Single safest route (not fastest vs. safest)
-We show one route — the safest — with its travel time. No fastest alternative. Keeps the UI focused and reinforces NachtRoute as a safety tool, not a navigation app.
+We show one route — the safest — with its travel time. No fastest alternative. Keeps the UI focused and reinforces Starlight as a safety tool, not a navigation app.
 
 ### AI boundary (deterministic routing, AI narration)
 This boundary is deliberate and load-bearing.
