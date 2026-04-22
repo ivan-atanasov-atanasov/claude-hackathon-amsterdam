@@ -2,7 +2,7 @@
 
 ## Overview
 
-Starlight is a route planner that helps women in Amsterdam travel safely between any two points. Enter a start, destination, departure time, and travel mode — get the single safest route with estimated travel time, chosen from real Amsterdam open data (street lighting, reported incidents, foot traffic) and with a plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
+Starlight is a route planner that helps women in Amsterdam travel safely between any two points. Enter a start, destination, departure time, and travel mode — get the single safest route with estimated travel time, chosen from real Amsterdam open data (street lighting, citizen incident reports, nuisance and camera zones, pedestrian counts, building density, neighborhood safety index) and with a plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
 
 Route selection is **fully deterministic**. Claude is used only to narrate the chosen route and generate personalized tips — never to pick the route.
 
@@ -12,9 +12,9 @@ Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 
 
 ## Problem Statement
 
-Women in Amsterdam avoid cycling and walking at night because they don't know which route is safe. No existing tool routes women through well-lit, low-incident streets. The municipality already publishes the data needed to do better — lighting, incidents, hotspot geometry — but no tool brings it together for the rider.
+Women in Amsterdam avoid cycling and walking at night because they don't know which route is safe. No existing tool routes women through well-lit, low-incident streets. The municipality already publishes the data needed to do better — lighting, incidents, hotspot geometry, camera zones, pedestrian counts — but no tool brings it together for the rider.
 
-Grounding from Gemeente Amsterdam's *Sociale veiligheid op de fiets 2025* survey:
+Grounding from Gemeente Amsterdam's *Sociale veiligheid op de fiets 2025* survey (n=1,478):
 
 | Stat | Value |
 |------|------:|
@@ -24,7 +24,23 @@ Grounding from Gemeente Amsterdam's *Sociale veiligheid op de fiets 2025* survey
 | Cyclists who can name a specific location where they were harassed | **22%** |
 | Cyclists who already avoid certain routes | **~50%** |
 
-Hotspot types named in the report: **parks, entertainment squares, train stations** — distributed across the whole city, not one district. Women's top-requested fixes are **better lighting, safer cycling routes, and awareness**. Women more often than men mitigate by sharing live location or switching transport mode. Starlight directly addresses the top two asks.
+Hotspot types named in the report: **parks, entertainment squares, train stations** — distributed across the whole city, not one district. Women's top-requested fixes are **better lighting, more supervision / cameras, and safer routes**. Women more often than men mitigate by sharing live location or switching transport mode. Starlight directly addresses these asks.
+
+The survey also quantifies *why* a place feels unsafe (women respondents, multi-select):
+
+| Factor cited | % women citing |
+|---|---:|
+| Few people on street | 70% |
+| Isolated location | 70% |
+| Poor lighting | 57% |
+| No overview (bushes, tunnels) | 57% |
+| Few homes / residential density | 57% |
+| Few businesses / non-residential activity | 55% |
+| No escape route | 52% |
+| People under influence | 52% |
+| Someone else was harassed here | 42% |
+
+These percentages seed the initial layer weights in the scoring model — no longer pure hackathon guesses.
 
 ---
 
@@ -52,9 +68,9 @@ Hotspot types named in the report: **parks, entertainment squares, train station
 1. **Route input** — start address, destination, departure time (defaults to now), mode (cycling / walking)
 2. **Single safest route** — one route, chosen deterministically from Google Directions alternatives by safety score (internal only); shows distance and estimated travel time
 3. **AI-generated "Why this route" explanation** — 2–3 sentences in plain language, e.g. *"This route avoids Leidseplein after 23:00 and uses Haarlemmerdijk, which has dense lighting and steady foot traffic."*
-5. **Contextual safety tips** — 3–5 tips on the results page, tailored to route segments, time of day, and mode. Triggers include: passing a known hotspot type (park / square / station), post-sunset departure, walking vs. cycling
-6. **Open in Google Maps** — one tap launches the route in Google Maps with the correct mode
-7. **Time-aware scoring** — safety score and tips both shift between day, evening, and late night
+4. **Contextual safety tips** — 3–5 tips on the results page, tailored to route segments, time of day, and mode. Triggers include: passing a known hotspot type (park / square / station), post-sunset departure, walking vs. cycling
+5. **Open in Google Maps** — one tap launches the route in Google Maps with the correct mode
+6. **Time-aware scoring** — the internal score and tips both shift between day, evening, and late night
 
 ### P1 — nice to have
 
@@ -69,14 +85,13 @@ Hotspot types named in the report: **parks, entertainment squares, train station
 - Mid-journey push notifications
 - Native iOS/Android apps
 - Languages beyond Dutch/English
-- Real-time foot traffic
 
 ---
 
 ## User Stories
 
 - As a woman about to cycle home at 23:30, I enter my start and destination and see one clearly safest route with travel time, so I can leave feeling confident.
-- As a woman planning a night out, I set a future departure time and see how the safety score and tips change versus leaving now.
+- As a woman planning a night out, I set a future departure time and see how the tips change versus leaving now.
 - As a user, I read the "why this route" explanation and 3–5 personalized tips, and I understand what the product is doing for me without reading a manual.
 - As a user, I tap "Open in Google Maps" and the safest route launches in the mode I selected, with no retyping.
 
@@ -90,14 +105,26 @@ Hotspot types named in the report: **parks, entertainment squares, train station
 |-----------|------------|-------|
 | Frontend | Next.js 16 + React 19 + Tailwind CSS 4 | App Router, deployed to Vercel |
 | Backend | FastAPI (Python 3.14) | Deployed to Railway |
-| Database | Supabase (PostgreSQL) | Stores processed safety data |
+| Database | Supabase (PostgreSQL + PostGIS) | Stores pre-computed safety grid and seed data |
 | Routing | Google Maps Directions API | Cycling + walking alternatives |
 | Map display | Google Maps JavaScript API | Consistent with handoff deep-link |
 | AI narration + tips | Claude `claude-sonnet-4-6` via Anthropic SDK | Prompt caching on system prompt |
-| Street lighting | `maps.amsterdam.nl/lichtpunten/` | Open dataset, one-time import |
-| Incidents | `onderzoek.amsterdam.nl` (openbare orde & veiligheid) | Open dataset, one-time import |
-| Hotspot polygons | Amsterdam open geodata | Manually curated: parks, squares, stations |
-| Foot traffic | Simulated (time-of-day × street-type heuristic) | Flagged in UI |
+
+### Data sources
+
+All Amsterdam Data API endpoints (`api.data.amsterdam.nl/v1/`) require a free API key from `keys.api.data.amsterdam.nl/clients/v1/`.
+
+| Layer | Source | Role in score |
+|-------|--------|---------------|
+| Street lighting points | Amsterdam Data API `/v1/leidingeninfrastructuur/amsterdam_ovl_lichtpunten` | Lighting score per grid cell (density of light points) |
+| Citizen incident reports | Amsterdam Data API `/v1/meldingen` (SIA) | Geocoded reports from mid-2018 onward; filter to person/group/public-space nuisance categories, last 24 months |
+| Nuisance + camera zones | Amsterdam Data API `/v1/overlastgebieden` | 16 zone types with day/time validity. Most are penalties (drug dealing, alcohol ban, nightlife nuisance, knife ban). `cameratoezicht` is a **positive** signal. |
+| Building density | Amsterdam Data API `/v1/bag` | Residential + non-residential density per grid cell — proxy for the top-2 survey fear factors ("few people on street" / "isolated") |
+| Pedestrian counts | Amsterdam Data API `/v1/crowdmonitor` | Real sensor data where coverage exists; time-of-day × street-type heuristic as fallback outside sensor coverage |
+| Neighborhood baseline | *Veiligheidsindex 2025-3* (XLSX, O&S Amsterdam) | One composite score per buurt (crime + victimization + perception); joined via `/v1/gebieden` polygons |
+| Unsafe-area seed | *Sociale veiligheid op de fiets 2025* Tables 1 + §1.7 + §1.8 | Initial unsafe polygons/corridors, loaded from the survey into `unsafe_areas` |
+| Park / green polygons | Amsterdam Data API `/v1/functionele_gebieden` | Geometry for named parks (Vondelpark, Oosterpark, etc.) without manual curation |
+| Neighborhood polygons | Amsterdam Data API `/v1/gebieden` | Buurt / wijk boundaries for joining the Veiligheidsindex baseline |
 
 ### AI usage boundary
 
@@ -105,13 +132,13 @@ The AI boundary is narrow on purpose — it keeps the product reviewable, fast, 
 
 - **Deterministic (no LLM):** route candidate fetching, safety grid computation, scoring, route selection.
 - **AI-assisted (Claude):** the "why this route" explanation and contextual safety tips.
-- **Inputs to Claude:** route polyline summary, grid cells crossed, safety subscores, departure time, mode, and which hotspot types the route intersects. **No PII.** Addresses are resolved to coordinates before leaving the server.
+- **Inputs to Claude:** route polyline summary, grid cells crossed, per-layer subscores, departure time, mode, and which unsafe-area polygons the route intersects. **No PII.** Addresses are resolved to coordinates before leaving the server.
 - **Budget:** one Claude call per `/routes` request; hard timeout 2s; prompt caching on the system prompt keeps repeat latency low.
 - **Failure mode:** on AI error or timeout, the API returns `ai_status: "fallback"` and the UI renders a static fallback tip list. The product must work end-to-end without the AI.
 
 ### `safety_grid` is pre-computed
 
-Grid cells and their base `lighting_score` / `incident_score` are built once at data import time. Only the time-dependent `traffic_score` and final weighting are computed per request.
+Static layers (lighting, building density, overlast zones, camera zones, incidents, unsafe-area penalties, veiligheidsindex baseline) are computed once per grid cell at data-import time. Only the time-dependent people-density score (crowdmonitor + heuristic) and final time-of-day weighting are computed per request.
 
 ---
 
@@ -121,7 +148,7 @@ Grid cells and their base `lighting_score` / `incident_score` are built once at 
 |--------|------|-------------|
 | GET | `/health` | Health check |
 | GET | `/routes?from&to&time&mode` | Returns safest route, AI explanation, and tips |
-| GET | `/safety?lat&lng&radius&time` | Returns safety score for a location at a given time |
+| GET | `/safety?lat&lng&radius&time` | Returns internal safety score for a location at a given time (debug / future use) |
 | GET | `/tips?time&mode&hotspots` | Regenerates tips without re-routing (used by client if user tweaks time) |
 
 ### `GET /routes` response
@@ -165,17 +192,35 @@ Grid cells and their base `lighting_score` / `incident_score` are built once at 
 | id | uuid | Primary key |
 | lat | float | Latitude |
 | lng | float | Longitude |
-| category | text | Incident type |
+| category | text | SIA category (e.g. `overlast-personen-groepen`) |
 | occurred_at | timestamp | |
 | imported_at | timestamp | |
 
-### `hotspots`
+### `overlast_zones`
 | Column | Type | Notes |
 |--------|------|-------|
 | id | uuid | Primary key |
-| kind | text | `park` \| `square` \| `station` |
-| name | text | Display name |
-| geometry | jsonb | GeoJSON polygon |
+| kind | text | `dealeroverlast` \| `alcoholverbod` \| `uitgaansoverlast` \| `cameratoezicht` \| ... (16 types) |
+| geometry | jsonb | GeoJSON MultiPolygon |
+| validity_days | text[] | e.g. `['thu','fri','sat']` |
+| validity_hours | text | e.g. `'16:00–04:00'` |
+| polarity | text | `penalty` \| `bonus` (`cameratoezicht` is bonus) |
+
+### `unsafe_areas`
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | Primary key |
+| name | text | Display name (e.g. `Leidseplein`, `Gooiseweg-corridor`) |
+| kind | text | `park` \| `square` \| `station` \| `corridor` \| `cluster` |
+| source | text | `survey_cluster` (Table 1) \| `survey_corridor` (§1.7) \| `survey_hotspot_type` (§1.8) \| `curated` |
+| geometry | jsonb | GeoJSON polygon or linestring |
+
+### `buurt_baseline`
+| Column | Type | Notes |
+|--------|------|-------|
+| buurt_code | text | Primary key, joins to `/v1/gebieden` |
+| veiligheidsindex | float | 2025-3 composite score, normalized 0.0–1.0 |
+| updated_at | timestamp | |
 
 ### `safety_grid`
 | Column | Type | Notes |
@@ -185,37 +230,59 @@ Grid cells and their base `lighting_score` / `incident_score` are built once at 
 | grid_y | int | ~100m cell |
 | lat | float | Cell center |
 | lng | float | Cell center |
-| lighting_score | float | 0.0–1.0 |
-| incident_score | float | 0.0–1.0 (inverted) |
-| hotspot_penalty | float | 0.0–0.2, from overlapping hotspot polygons |
+| buurt_code | text | For baseline join |
+| lighting_score | float | 0.0–1.0 (light-point density) |
+| incident_score | float | 0.0–1.0 (inverted meldingen density, last 24m) |
+| building_density_score | float | 0.0–1.0 (BAG residential + non-residential) |
+| overview_score | float | 0.0–1.0 (inverse of dense-green / tunnel coverage) |
+| camera_bonus | float | 0.0–0.2 (cameratoezicht overlap) |
+| overlast_penalty | float | 0.0–0.3 (time-valid overlastgebieden overlap) |
+| hotspot_penalty | float | 0.0–0.2 (unsafe_areas overlap) |
 | updated_at | timestamp | |
 
-`traffic_score` is computed per request from time-of-day × street-type, not stored.
+`people_density_score` (crowdmonitor + heuristic fallback) is computed per request from time-of-day, not stored.
 
 ---
 
 ## Safety Scoring Model
 
 ```
-cell_score(t) = w_light(t) * lighting_score
-              + w_incident(t) * incident_score
-              + w_traffic(t) * traffic_score(t)
-              − hotspot_penalty_at_time(t)
+cell_score(t) = veiligheidsindex_buurt
+  * (  w_people(t)    * people_density(t)         // crowdmonitor + heuristic fallback
+     + w_overview(t)  * overview_score            // inverse of dense-green / tunnels
+     + w_light(t)     * lighting_score            // lichtpunten density
+     + w_buildings(t) * building_density_score    // BAG (homes + businesses)
+     + w_camera(t)    * camera_bonus              // cameratoezicht zones (positive)
+     − w_overlast(t)  * overlast_penalty(t)       // overlastgebieden, time-valid
+     − w_incident(t)  * incident_score            // meldingen, last 24m
+     − w_hotspot(t)   * hotspot_penalty           // unsafe_areas (survey seed)
+    )
 
-route_score = mean(cell_score across cells the route traverses), scaled to 0–10
+route_score = mean(cell_score across cells the route traverses), scaled 0–10 (internal).
 ```
 
-### Time-of-day weights
+### Initial layer weights — seeded from survey Table 2
 
-| Window | lighting | incident | traffic |
-|--------|---------:|---------:|--------:|
-| 06:00–20:00 | 0.30 | 0.40 | 0.30 |
-| 20:00–23:00 | 0.45 | 0.40 | 0.15 |
-| 23:00–06:00 | 0.55 | 0.40 | 0.05 |
+Weights sum to ≈1.0 on the positive side; penalties subtract. Night windows shift emphasis toward lighting, overview, and overlast/incident layers.
 
-### Hotspot penalty
+| Layer | Survey signal | Day (06–20) | Evening (20–23) | Night (23–06) |
+|---|---|--:|--:|--:|
+| People density | 70% ("few people" / "isolated") | 0.22 | 0.20 | 0.18 |
+| Overview | 57% ("no overview") | 0.16 | 0.18 | 0.20 |
+| Lighting | 57% ("poor lighting") | 0.14 | 0.20 | 0.26 |
+| Building density | 57% ("few homes") + 55% ("few businesses") | 0.18 | 0.14 | 0.10 |
+| Camera bonus | 11% ("more cameras" as requested fix) | 0.04 | 0.06 | 0.08 |
+| Overlast penalty | 52% ("people under influence") | 0.08 | 0.14 | 0.18 |
+| Incidents (meldingen) | 42% ("someone was harassed here") | 0.10 | 0.10 | 0.10 |
+| Hotspot penalty (survey seed) | — | 0.08 | 0.12 | 0.16 |
 
-A cell receives a fixed penalty if it sits inside a curated park / square / station polygon, scaled by time of day (larger at night). Tuned starting value: −0.05 daytime, −0.10 evening, −0.15 late night.
+### Unsafe areas (single tier)
+
+The `unsafe_areas` table is loaded from three parts of the 2025 survey and treated uniformly — no "hard-to-avoid" discount. If the only viable route still crosses one, we return it and the narration acknowledges the trade-off honestly.
+
+- **Survey Table 1 clusters** (22 named unsafe clusters + 8 park clusters + 8 route corridors, organized by stadsdeel).
+- **§1.7 hard-to-avoid corridors** (e.g. Gooiseweg/Weesperzijde, Diemerpark, Buiksloterweg, Krugerplein, Transformatorweg, Delflandplein, Rembrandtpark, Sloterplas roundabout).
+- **§1.8 specific parks / nightlife / stations / squares** (Vondelpark, Oosterpark, Rembrandtpark, Noorderpark, Sloterplas, Mandelapark, Westerpark, Wallengebied, Leidseplein, Beukenplein, de Hallen, Centraal, Muiderpoort, Lelylaan, Osdorpplein, Plein 40-45, Bos en Lommerplein, Gulden Winckelplein, Buikslotermeerplein, Delflandplein).
 
 ### Route selection
 
@@ -225,7 +292,7 @@ A cell receives a fixed penalty if it sits inside a curated park / square / stat
 
 ### Calibration note
 
-Weights are hackathon-tuned. Validating them with *Wij eisen de nacht op* and real users is a post-hackathon task.
+Initial weights come from the 2025 survey's stated fear factors (Table 2) — an evidence-based starting point, not pure hackathon guesses. Validating them with *Wij eisen de nacht op* and real users is a post-hackathon task.
 
 ---
 
@@ -233,11 +300,15 @@ Weights are hackathon-tuned. Validating them with *Wij eisen de nacht op* and re
 
 | Dataset | Real for demo? | Notes |
 |---|---|---|
-| Street lighting (lichtpunten) | **Yes** — one-time import | Full Amsterdam coverage |
-| Incidents (openbare orde) | **Yes** — one-time import | Filtered to last 24 months |
-| Hotspot polygons | **Yes** — curated | Parks, entertainment squares, stations |
-| Foot traffic | **Simulated** | Time-of-day × street-type heuristic; flagged in UI |
-| 2025 cyclist-safety survey stats | **Real** — cited | Used for framing, not computation |
+| Street lighting (lichtpunten) | **Yes** | Amsterdam Data API, one-time import, citywide |
+| Citizen incidents (meldingen / SIA) | **Yes** | Amsterdam Data API, filtered to last 24 months and relevant categories |
+| Nuisance + camera zones (overlastgebieden) | **Yes** | Amsterdam Data API, 16 zone types with time validity |
+| Building density (BAG) | **Yes** | Amsterdam Data API, aggregated per grid cell |
+| Neighborhood baseline (Veiligheidsindex 2025-3) | **Yes** | O&S XLSX, joined via `/v1/gebieden` |
+| Unsafe-area seed (survey 2025) | **Yes** | Geocoded from Tables 1 + §1.7 + §1.8 of the survey |
+| Park polygons | **Yes** | Amsterdam Data API `/v1/functionele_gebieden` |
+| Pedestrian counts (crowdmonitor) | **Partial** | Real sensor data where coverage exists; time-of-day × street-type heuristic fallback elsewhere, flagged in UI |
+| 2025 cyclist-safety survey stats | **Real** | Framing + empirical layer weights from Table 2 |
 
 ---
 
@@ -245,7 +316,7 @@ Weights are hackathon-tuned. Validating them with *Wij eisen de nacht op* and re
 
 - User accounts or login
 - Live user-submitted incident reports
-- Real-time foot traffic data
+- Real-time foot traffic data (beyond the available `crowdmonitor` sensors)
 - Mid-journey push notifications
 - Native mobile apps
 - Languages beyond Dutch/English
@@ -258,7 +329,7 @@ Demo checklist:
 
 1. Enter a start + destination in Amsterdam → safest route with travel time in under 5 seconds
 2. "Why this route" explanation rendered in plain language
-3. Changing departure time midday ↔ midnight visibly changes tips
+3. Changing departure time midday ↔ midnight visibly changes the selected route and tips
 4. Changing mode cycling ↔ walking visibly changes tips
 5. AI explanation renders within 2s p95; on failure, fallback tips render without UI breakage
 6. Landing page surfaces a grounding stat ("78% of young women have been afraid cycling…")
@@ -269,13 +340,15 @@ Demo checklist:
 
 ## References
 
-- *Sociale veiligheid op de fiets 2025* — Gemeente Amsterdam — `https://onderzoek.amsterdam.nl/publicatie/sociale-veiligheid-op-de-fiets-2025` (primary grounding for problem statement and hotspot taxonomy)
-- Street lighting dataset — `https://maps.amsterdam.nl/lichtpunten/`
-- Incidents dataset — `https://onderzoek.amsterdam.nl` (Openbare Orde en Veiligheid)
-- NGO partner — *Wij eisen de nacht op* — `https://wijeisendenachtop.nl`
+- *Sociale veiligheid op de fiets 2025* — Gemeente Amsterdam, Onderzoek & Statistiek (December 2025). Authors: Lieselotte Bicknese, Merel Kieft. https://onderzoek.amsterdam.nl/publicatie/sociale-veiligheid-op-de-fiets-2025
+- *Veiligheidsindex 2025-3* (XLSX) — Onderzoek & Statistiek Amsterdam. https://onderzoek.amsterdam.nl/dataset/openbare-orde-en-veiligheid
+- Amsterdam Data API v1 — https://api.data.amsterdam.nl/v1/docs/index.html
+  - Key endpoints used: `/v1/leidingeninfrastructuur`, `/v1/meldingen`, `/v1/overlastgebieden`, `/v1/crowdmonitor`, `/v1/bag`, `/v1/gebieden`, `/v1/functionele_gebieden`, `/v1/loopfietsnetwerk`
+- Amsterdam Data API keys (free) — https://keys.api.data.amsterdam.nl/clients/v1/
+- NGO partner — *Wij eisen de nacht op* — https://wijeisendenachtop.nl
 - Google Maps Directions API — cycling + walking modes with alternatives
 
 ---
 
-*Version: 2.0 — 2026-04-21*
+*Version: 3.0 — 2026-04-22*
 *NGO partner: Wij eisen de nacht op*
