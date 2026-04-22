@@ -8,7 +8,13 @@
 
 ## What We're Building
 
-_[Add a short description of your product here]_
+**Starlight** — a cycling and walking route planner for women in Amsterdam that prioritizes safety over speed.
+
+Enter a start address, destination, departure time, and travel mode — get the single safest route with estimated travel time and an AI-generated plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
+
+Route selection is fully deterministic, powered by real Amsterdam open data (street lighting, reported incidents, hotspot polygons). Claude narrates the chosen route and generates personalized tips — it never picks the route.
+
+Built in partnership with NGO **Wij eisen de nacht op**, grounded in Gemeente Amsterdam's *Sociale veiligheid op de fiets 2025* survey: **78% of young women have been afraid while cycling at night**.
 
 ## Architecture
 
