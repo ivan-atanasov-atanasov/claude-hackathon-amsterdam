@@ -50,9 +50,8 @@ Hotspot types named in the report: **parks, entertainment squares, train station
 ### P0 — must have for demo
 
 1. **Route input** — start address, destination, departure time (defaults to now), mode (cycling / walking)
-2. **Single safest route** — one route, chosen deterministically from Google Directions alternatives by safety score; shows distance and estimated travel time
-3. **Safety score** — 0–10 score with breakdown (lighting / incidents / traffic), time-aware
-4. **AI-generated "Why this route" explanation** — 2–3 sentences in plain language, e.g. *"This route avoids Leidseplein after 23:00 and uses Haarlemmerdijk, which has dense lighting and steady foot traffic."*
+2. **Single safest route** — one route, chosen deterministically from Google Directions alternatives by safety score (internal only); shows distance and estimated travel time
+3. **AI-generated "Why this route" explanation** — 2–3 sentences in plain language, e.g. *"This route avoids Leidseplein after 23:00 and uses Haarlemmerdijk, which has dense lighting and steady foot traffic."*
 5. **Contextual safety tips** — 3–5 tips on the results page, tailored to route segments, time of day, and mode. Triggers include: passing a known hotspot type (park / square / station), post-sunset departure, walking vs. cycling
 6. **Open in Google Maps** — one tap launches the route in Google Maps with the correct mode
 7. **Time-aware scoring** — safety score and tips both shift between day, evening, and late night
@@ -108,7 +107,7 @@ The AI boundary is narrow on purpose — it keeps the product reviewable, fast, 
 - **AI-assisted (Claude):** the "why this route" explanation and contextual safety tips.
 - **Inputs to Claude:** route polyline summary, grid cells crossed, safety subscores, departure time, mode, and which hotspot types the route intersects. **No PII.** Addresses are resolved to coordinates before leaving the server.
 - **Budget:** one Claude call per `/routes` request; hard timeout 2s; prompt caching on the system prompt keeps repeat latency low.
-- **Failure mode:** on AI error or timeout, the API returns `ai_status: "fallback"` and the UI renders the deterministic score plus a static fallback tip list. The product must work end-to-end without the AI.
+- **Failure mode:** on AI error or timeout, the API returns `ai_status: "fallback"` and the UI renders a static fallback tip list. The product must work end-to-end without the AI.
 
 ### `safety_grid` is pre-computed
 
@@ -121,7 +120,7 @@ Grid cells and their base `lighting_score` / `incident_score` are built once at 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check |
-| GET | `/routes?from&to&time&mode` | Returns safest route, safety score, AI explanation, tips |
+| GET | `/routes?from&to&time&mode` | Returns safest route, AI explanation, and tips |
 | GET | `/safety?lat&lng&radius&time` | Returns safety score for a location at a given time |
 | GET | `/tips?time&mode&hotspots` | Regenerates tips without re-routing (used by client if user tweaks time) |
 
@@ -133,12 +132,6 @@ Grid cells and their base `lighting_score` / `incident_score` are built once at 
     "polyline": "encoded_polyline_string",
     "distance_m": 2400,
     "duration_min": 12,
-    "safety_score": 8.2,
-    "safety_breakdown": {
-      "lighting": 0.85,
-      "incidents": 0.79,
-      "traffic": 0.71
-    },
     "hotspots_passed": ["park", "station"]
   },
   "explanation": "This route avoids Leidseplein after 23:00 and uses Haarlemmerdijk, which has dense lighting and steady foot traffic.",
@@ -264,8 +257,8 @@ Weights are hackathon-tuned. Validating them with *Wij eisen de nacht op* and re
 Demo checklist:
 
 1. Enter a start + destination in Amsterdam → safest route with travel time in under 5 seconds
-2. Safety score visible and explained in plain language
-3. Changing departure time midday ↔ midnight visibly changes score **and** tips
+2. "Why this route" explanation rendered in plain language
+3. Changing departure time midday ↔ midnight visibly changes tips
 4. Changing mode cycling ↔ walking visibly changes tips
 5. AI explanation renders within 2s p95; on failure, fallback tips render without UI breakage
 6. Landing page surfaces a grounding stat ("78% of young women have been afraid cycling…")
