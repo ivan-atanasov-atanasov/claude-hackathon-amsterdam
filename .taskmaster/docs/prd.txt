@@ -2,7 +2,7 @@
 
 ## Overview
 
-Starlight is a cycling and walking route planner for women in Amsterdam that prioritizes **safety over speed**. Enter a start, destination, departure time, and travel mode — get the single safest route with estimated travel time, scored on real Amsterdam open data (street lighting, reported incidents, foot traffic) and with a plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
+Starlight is a route planner that helps women in Amsterdam get home safely. Enter a start, destination, departure time, and travel mode — get the single safest route with estimated travel time, chosen from real Amsterdam open data (street lighting, reported incidents, foot traffic) and with a plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
 
 Route selection is **fully deterministic**. Claude is used only to narrate the chosen route and generate personalized tips — never to pick the route.
 
@@ -12,7 +12,7 @@ Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 
 
 ## Problem Statement
 
-Women in Amsterdam avoid cycling and walking at night because they don't know which route is safe. Google Maps optimizes for speed, not safety. The municipality already publishes the data needed to do better — lighting, incidents, hotspot geometry — but no tool brings it together for the rider.
+Women in Amsterdam avoid cycling and walking at night because they don't know which route is safe. No existing tool routes women through well-lit, low-incident streets. The municipality already publishes the data needed to do better — lighting, incidents, hotspot geometry — but no tool brings it together for the rider.
 
 Grounding from Gemeente Amsterdam's *Sociale veiligheid op de fiets 2025* survey:
 
