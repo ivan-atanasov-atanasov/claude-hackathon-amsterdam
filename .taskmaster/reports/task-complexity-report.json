@@ -1,0 +1,109 @@
+{
+	"meta": {
+		"generatedAt": "2026-04-22T21:42:51.984Z",
+		"tasksAnalyzed": 12,
+		"totalTasks": 12,
+		"analysisCount": 12,
+		"thresholdScore": 5,
+		"projectName": "Task Master",
+		"usedResearch": false
+	},
+	"complexityAnalysis": [
+		{
+			"taskId": 12,
+			"taskTitle": "Set up Supabase database schema and PostGIS extension",
+			"complexityScore": 6,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down the Supabase schema setup into: (1) Enable PostGIS extension, (2) Create lighting_points and incidents tables with spatial indexes, (3) Create overlast_zones and unsafe_areas tables with GiST indexes on geometry columns, (4) Create buurt_baseline table, (5) Create safety_grid table with foreign key to buurt_baseline, (6) Write test script to validate geometry columns accept GeoJSON and spatial queries work",
+			"reasoning": "This is a greenfield database schema task. The codebase shows Supabase client is already installed. Creating 6 tables with PostGIS support requires understanding of spatial data types, GiST indexes, and foreign key constraints. Moderate complexity due to PostGIS-specific features, but well-defined requirements reduce ambiguity."
+		},
+		{
+			"taskId": 13,
+			"taskTitle": "Build Amsterdam Data API client and data import pipeline",
+			"complexityScore": 8,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break down the API client into: (1) Add httpx and anthropic to requirements.txt, (2) Create amsterdam_api.py with async client class and authentication, (3) Implement pagination and rate limiting utilities, (4) Add endpoint methods for lighting_points and incidents with filtering, (5) Add endpoint methods for overlast_zones, BAG, gebieden, and functionele_gebieden, (6) Implement GeoJSON to JSONB transformation, (7) Create import_data.py CLI script with progress tracking, (8) Add hardcoded unsafe_areas seed data from survey and test full import pipeline",
+			"reasoning": "High complexity due to multiple external API integrations (7 endpoints), async HTTP handling, pagination, rate limiting, GeoJSON transformations, and data validation. The backend is minimal (only health endpoint exists), so this creates substantial new infrastructure. Error handling for API failures adds complexity."
+		},
+		{
+			"taskId": 14,
+			"taskTitle": "Implement safety_grid pre-computation and scoring model",
+			"complexityScore": 9,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Break down grid scoring into: (1) Create grid_builder.py with Amsterdam bounding box grid generation (~100m cells), (2) Implement spatial density calculation for lighting_score using PostGIS ST_Distance, (3) Implement inverted incident_score calculation, (4) Implement building_density_score from BAG data, (5) Implement overview_score using park/tunnel polygon coverage, (6) Implement camera_bonus from overlastgebieden, (7) Implement overlast_penalty aggregation, (8) Implement hotspot_penalty from unsafe_areas, (9) Implement buurt_code join using ST_Contains, (10) Create scorer.py with time-of-day weight tables and score computation logic",
+			"reasoning": "Very high complexity. This is the core algorithmic component requiring PostGIS spatial queries, normalization logic, and multi-layer score aggregation. The time-of-day weighting system adds mathematical complexity. Generating a grid covering Amsterdam (~50-100k cells) with 8 computed scores per cell requires optimization. No existing scoring infrastructure in codebase."
+		},
+		{
+			"taskId": 15,
+			"taskTitle": "Integrate Google Maps Directions API for route fetching",
+			"complexityScore": 5,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down directions integration into: (1) Add googlemaps and polyline libraries to requirements.txt, (2) Create directions.py service with API client initialization, (3) Implement fetch_route_alternatives function with mode and departure_time parameters, (4) Add polyline decoding to coordinate lists, (5) Implement error handling for no routes found, API quota exceeded, and invalid addresses, with RouteAlternative response model",
+			"reasoning": "Moderate complexity. Straightforward third-party API integration with well-documented googlemaps library. Main challenges are error handling and polyline decoding. The backend has no existing service layer, but this is a focused, single-purpose module. Complexity reduced by using official SDK."
+		},
+		{
+			"taskId": 16,
+			"taskTitle": "Build route scoring and selection algorithm",
+			"complexityScore": 8,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break down route scoring into: (1) Create route_scorer.py with polyline sampling logic (~50m intervals), (2) Implement nearest safety_grid cell lookup using spatial queries, (3) Implement people_density_score calculation with crowdmonitor integration and time-based heuristics, (4) Implement time-of-day weight application (day/evening/night periods), (5) Implement per-cell score calculation using veiligheidsindex and weighted layer scores, (6) Implement hotspot detection using unsafe_area polygon intersection, (7) Create RouteScore model and integrate into GET /routes endpoint to select highest-scoring route",
+			"reasoning": "High complexity due to multiple algorithmic components: polyline sampling, spatial lookups, dynamic people density scoring, time-based weighting, and polygon intersection detection. Requires integration with task 14's scoring logic and task 15's routes. The scoring algorithm is critical to product quality and needs careful testing."
+		},
+		{
+			"taskId": 17,
+			"taskTitle": "Set up Claude AI integration for route explanation and tips",
+			"complexityScore": 6,
+			"recommendedSubtasks": 6,
+			"expansionPrompt": "Break down AI integration into: (1) Add anthropic SDK to requirements.txt, (2) Create ai_narrator.py with Claude client initialization and prompt caching setup, (3) Implement generate_explanation function with system prompt including PRD context and survey stats, (4) Implement generate_tips function with contextual tip triggers (parks, stations, nightlife, etc.), (5) Add 2s timeout handling with fallback to static tips, (6) Create static fallback tips library and test ai_status field in responses",
+			"reasoning": "Moderate-high complexity. While the Anthropic SDK is straightforward, crafting effective prompts for concise, grounded explanations requires iteration. Prompt caching setup, timeout handling, and fallback logic add engineering overhead. Testing AI output quality is subjective and time-consuming."
+		},
+		{
+			"taskId": 18,
+			"taskTitle": "Implement FastAPI backend routes (/routes, /safety, /tips)",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break down API routes into: (1) Create routers/routes.py and register in main.py, (2) Implement GET /routes with address geocoding using Google Geocoding API, (3) Integrate directions service to fetch route alternatives, (4) Integrate route scoring service and select best route, (5) Integrate AI narrator with fallback handling, (6) Create Pydantic response models per PRD schema, (7) Implement GET /safety debug endpoint for location-based scoring, (8) Implement GET /tips endpoint for regenerating tips and add comprehensive error handling for all endpoints",
+			"reasoning": "High complexity due to orchestration of multiple services (geocoding, directions, scoring, AI). Requires creating router infrastructure (none exists beyond health endpoint), Pydantic models, and error handling for 5+ failure modes. Integration testing across services is time-intensive."
+		},
+		{
+			"taskId": 19,
+			"taskTitle": "Build frontend route input form with address autocomplete",
+			"complexityScore": 6,
+			"recommendedSubtasks": 7,
+			"expansionPrompt": "Break down form component into: (1) Install @react-google-maps/api in frontend, (2) Create RouteForm.tsx component with LoadScript wrapper, (3) Implement start address Autocomplete input with Amsterdam bias, (4) Implement destination address Autocomplete input, (5) Add departure time picker with default to now and validation for past times, (6) Add mode selector radio group (cycling/walking), (7) Implement form validation, submission with loading state, error handling, and Tailwind CSS 4 styling",
+			"reasoning": "Moderate-high complexity. React 19 + Next.js 16 have new patterns (per CLAUDE.md warnings). Google Places Autocomplete integration requires API key management and LoadScript setup. Form validation, loading states, and error handling add complexity. Tailwind CSS 4's new API requires careful attention to avoid v3 patterns."
+		},
+		{
+			"taskId": 20,
+			"taskTitle": "Build route display component with Google Maps integration",
+			"complexityScore": 7,
+			"recommendedSubtasks": 8,
+			"expansionPrompt": "Break down route display into: (1) Create RouteDisplay.tsx with GoogleMap component setup, (2) Implement polyline decoding from API response, (3) Add Polyline overlay rendering on map, (4) Add start and destination marker components, (5) Add hotspot markers (parks, stations, squares) along route, (6) Create route metadata card with distance, duration, and AI explanation, (7) Implement contextual tips list display with ai_status fallback warning, (8) Add 'Open in Google Maps' deep link button and responsive layout (mobile/desktop)",
+			"reasoning": "High complexity due to Google Maps API integration, polyline decoding, marker management, and responsive design requirements. Need to handle map bounds fitting, marker clustering potentially, and deep link generation. React 19's new features may affect map component lifecycle. No existing map components in frontend."
+		},
+		{
+			"taskId": 21,
+			"taskTitle": "Create landing page with problem statement and survey stats",
+			"complexityScore": 4,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down landing page into: (1) Update app/page.tsx with hero section and problem statement, (2) Add survey stats section with 4 key statistics and visual emphasis, (3) Implement CTA button with scroll behavior to RouteForm, (4) Create footer with NGO link, data sources link, and hackathon attribution, (5) Add SEO metadata (title, description, og:image) and ensure mobile-responsive design with Tailwind CSS 4",
+			"reasoning": "Moderate complexity. Mostly content and styling work with straightforward React components. Tailwind CSS 4's new API requires attention, but no complex state management or API integration. SEO metadata and responsive design are standard but add testing overhead. Frontend currently has default Next.js starter, so this replaces simple boilerplate."
+		},
+		{
+			"taskId": 22,
+			"taskTitle": "Add time-of-day route comparison feature",
+			"complexityScore": 5,
+			"recommendedSubtasks": 5,
+			"expansionPrompt": "Break down time comparison into: (1) Update RouteDisplay.tsx to add time selector UI with quick picks (Now, Tonight, Late night), (2) Add custom time picker component, (3) Implement GET /tips API call on time change without re-rendering map, (4) Add visual indicator for significant score changes (>15% difference), (5) Optional: enhance API response to include score and implement before/after score comparison UI",
+			"reasoning": "Moderate complexity. Requires state management for time changes, conditional API calls, and selective re-rendering (tips update without map re-render). The optional score comparison feature adds uncertainty. React 19's concurrent features may help, but need to ensure no unnecessary re-renders. Depends on task 20 being complete."
+		},
+		{
+			"taskId": 23,
+			"taskTitle": "End-to-end testing and production deployment validation",
+			"complexityScore": 7,
+			"recommendedSubtasks": 10,
+			"expansionPrompt": "Break down E2E testing and deployment into: (1) Run full Amsterdam data import for all layers, (2) Generate complete safety_grid for Amsterdam, (3) Test happy path user flow with real addresses, (4) Verify <5s response time and coherent AI explanations, (5) Deploy backend to Railway with environment variables, (6) Deploy frontend to Vercel with environment variables, (7) Configure production CORS for Vercel domain, (8) Test production deployment with real addresses, (9) Cross-browser and mobile device testing (iOS Safari, Android Chrome), (10) Load test with 10 concurrent users and monitor error logs for 24 hours",
+			"reasoning": "High complexity due to breadth of testing and deployment tasks. Full data import for Amsterdam could take hours and reveal data quality issues. Production deployment requires coordinating Railway and Vercel configs, environment variables, and CORS. Load testing, mobile testing, and 24-hour monitoring are time-intensive. This is a validation task, not implementation, but critical for launch readiness."
+		}
+	]
+}
