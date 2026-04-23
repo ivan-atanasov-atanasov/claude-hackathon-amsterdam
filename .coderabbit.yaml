@@ -1,0 +1,41 @@
+language: en-US
+early_access: false
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - main
+  path_filters:
+    - "!**/*.lock"
+    - "!**/node_modules/**"
+    - "!**/.next/**"
+    - "!**/venv/**"
+    - "!**/__pycache__/**"
+    - "!**/.taskmaster/**"
+  path_instructions:
+    - path: "frontend/**/*.{ts,tsx}"
+      instructions: |
+        Next.js 16 + React 19 + Tailwind CSS 4. Do not suggest patterns from
+        older Next.js or React versions. Use proxy.ts instead of middleware.ts.
+        TypeScript strict mode; never suggest `any`. Tailwind v4 config lives in
+        postcss.config.mjs, not tailwind.config.js.
+    - path: "backend/**/*.py"
+      instructions: |
+        FastAPI + Python 3.14 + uvicorn. Prefer type hints. Never bypass
+        Supabase Row Level Security. Credentials load via python-dotenv from
+        backend/.env.
+    - path: "**/*.{yml,yaml}"
+      instructions: |
+        GitHub Actions / Railway / Vercel config — flag any plaintext secrets
+        or hardcoded URLs (use env vars / GitHub secrets instead).
+
+chat:
+  auto_reply: true
