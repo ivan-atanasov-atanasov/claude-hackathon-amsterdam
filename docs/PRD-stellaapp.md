@@ -2,9 +2,9 @@
 
 ## Overview
 
-Stella.app calculates the safest cycling or walking route between two points in Amsterdam — not the fastest, the safest *for women*. Enter a start, destination, departure time, and travel mode; get a single safest route with estimated travel time, a plain-language list of the specific streets, squares, parks, and areas the route is **avoiding**, and contextual safety tips tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps — no new habit required.
+Stella.app provides the safest cycling or walking route for Women, in Amsterdam. Enter a start and ending point and travel mode; get a single safest route with estimated travel time and 2 to 3 reasons why this is the safest route at that time as well as contextual safety tips tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps — no new habit required.
 
-The weighted safety score draws on real Amsterdam open data (street lighting, citizen incident reports, nuisance and camera zones, pedestrian counts, building density, neighborhood safety index), the Pointer/KRO-NCRV national unsafe-places map, and the Gemeente Amsterdam O&S survey that mapped this problem in the first place.
+The weighted safety score draws on real Amsterdam open data like street lighting, citizen incident reports, camera zones, reported social safety scores, building density etc.
 
 Route selection is **fully deterministic**. Claude is used only to name the streets and areas the route avoids and generate personalized tips — never to pick the route.
 
@@ -16,24 +16,24 @@ Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 
 
 Amsterdam is one of the world's greatest cycling cities. Two thirds of Amsterdammers cycle regularly. But that freedom isn't equally shared.
 
-According to Gemeente Amsterdam's own research, **78% of young women feel afraid of cycling in Amsterdam**. **22%** have actually been harassed on their bike. The fear peaks at night — exactly when women most need to get home.
+According to recently conducted research done by the Gemeente Amsterdam's, **78% of young women feel afraid of cycling in Amsterdam**. **22%** have actually been harassed on their bike. The fear peaks at night.
 
 **77% of young women cope** by texting when they leave, sharing their live location, or calling someone while cycling in the dark. Sometimes just pretending to. This is the invisible mental load women carry every time they get on a bike after sunset.
 
-Across the Netherlands, nearly **10,000 women** marked specific unsafe spots on a national map. On **more than half**, something had already happened to them or someone they know. **70%** say the built environment makes it worse: broken streetlights, no alternative routes around dark or isolated areas.
+Across the Netherlands, nearly **10,000 women** marked specific unsafe spots on a national map. On **more than half**, something had already happened to them or someone they know. **70%** say the built environment makes it worse: broken streetlights, no known alternative routes around dark or isolated areas.
 
 **48% of women regularly take detours** to avoid unsafe spots. **39% sometimes don't go out alone at all.** Women are already routing for safety — manually, in their heads, every single time.
 
 ### The insight that changes everything
 
-Existing navigation apps optimize for speed. Where safety tools exist, they're built around the wrong definition — designed around what makes *men* feel unsafe.
+Existing navigation apps optimize for speed. We prioritize safety, safety for women, taking into account social safety as well "traffic safety". 
 
-These are not the same thing.
+Research shows that there are big differences in what safety means for men vs women:
 
-- **For men**, safety means: fatbikes, unclear intersections, narrow cycling lanes.
-- **For women**, safety means: other people around, good lighting, no high bushes, no blind corners.
+- **For men**, safety means: Unclear intersections, narrow cycling lanes, asocial cycling behaviour.
+- **For women**, safety means: being alone, a not well lid cycling lane, high bushes, groups of men that aren't travelling anywhere in particular.
 
-No navigation tool makes this distinction. Stella.app does.
+Stella.app will use the right data to determine the right route based specifically on this nuance difference between man and women. 
 
 ### Grounding data
 
@@ -79,7 +79,9 @@ These percentages seed the initial layer weights in the scoring model — no lon
 
 ## The Solution
 
-Stella.app calculates the safest cycling or walking route from A to B in Amsterdam. Not the fastest — the safest for women. Its weighted safety score draws on:
+Stella.app provides the safest cycling or walking route for Women, in Amsterdam. Enter a start and ending point and travel mode; get a single safest route with estimated travel time and 2 to 3 reasons why this is the safest route at that time as well as contextual safety tips tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps — no new habit required.
+
+The weighted safety score draws on real Amsterdam open data like street lighting, citizen incident reports, camera zones, reported social safety scores, building density etc. Its weighted safety score draws on:
 
 - **Lighting infrastructure** — where the streetlights are and where they aren't.
 - **Incident reports** — where harassment and public-space incidents have actually been reported.
@@ -120,10 +122,10 @@ This is Stella.app. Inspired by **Wij Eisen de Nacht Op**.
 
 ### P0 — must have for demo
 
-1. **Route input** — start address, destination, departure time (defaults to now), mode (cycling / walking)
-2. **Single safest route** — one route, chosen deterministically from Google Directions alternatives by safety score (internal only); shows distance and estimated travel time
-3. **AI-generated "What this route avoids" summary** — 2–3 sentences in plain language that name the specific streets, squares, parks, or areas the route is routing around, e.g. *"This route avoids Leidseplein, the Vondelpark south edge, and the Overtoom tunnel after dark — all flagged unsafe by women in the 2025 survey."* The summary focuses on **avoided places**, not a general justification of the chosen path.
-4. **Contextual safety tips** — 3–5 tips on the results page, tailored to route segments, time of day, and mode. Triggers include: passing a known hotspot type (park / square / station), post-sunset departure, walking vs. cycling
+1. **Route input** — start address (have google prefill), destination, departure time (defaults to now), mode (cycling / walking)
+2. **Single safest route** — one route that you see on an actual map, chosen deterministically from Google Directions alternatives by safety score (internal only); shows distance and estimated travel time. The route needs to be really based on the engine that is behind it and decides how heavy to weigh each data point based on the safety score.
+3. **AI-generated "What this route avoids" summary** — 1 sentence in plain language that name the specific streets, squares, parks, or areas the route is routing around, e.g. *"This route avoids Leidseplein, the Vondelpark south edge, and the Overtoom tunnel after dark — all flagged unsafe by women in the 2025 survey."* The summary focuses on **avoided places**, not a general justification of the chosen path.
+4. **Contextual safety tips** — 1 tip on the results page, tailored to route segments, time of day, and mode. Triggers include: passing a known hotspot type (park / square / station), post-sunset departure, walking vs. cycling
 5. **Open in Google Maps** — one tap launches the route in Google Maps with the correct mode
 6. **Time-aware scoring** — the internal score and tips both shift between day, evening, and late night
 
