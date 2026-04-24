@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 interface RouteResult {
@@ -14,7 +14,24 @@ interface RoutesResponse {
   mode: string;
 }
 
+function loadGoogleMaps(apiKey: string): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") return;
+    if ((window as Window & { google?: { maps?: unknown } }).google?.maps) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&v=beta&loading=async`;
+    script.async = true;
+    script.onload = () => resolve();
+    document.head.appendChild(script);
+  });
+}
+
 export default function Home() {
+  const fromContainerRef = useRef<HTMLDivElement>(null);
+  const toContainerRef = useRef<HTMLDivElement>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [mode, setMode] = useState<"bicycling" | "walking">("bicycling");
@@ -22,12 +39,41 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+    if (!apiKey || !fromContainerRef.current || !toContainerRef.current) return;
+
+    loadGoogleMaps(apiKey).then(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { PlaceAutocompleteElement } = await (window as any).google.maps.importLibrary("places");
+
+      const opts = { componentRestrictions: { country: "nl" } };
+
+      const fromPAC = new PlaceAutocompleteElement(opts);
+      fromContainerRef.current!.appendChild(fromPAC);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      fromPAC.addEventListener("gmp-select", async (e: any) => {
+        const place = e.placePrediction.toPlace();
+        await place.fetchFields({ fields: ["formattedAddress"] });
+        setFrom(place.formattedAddress);
+      });
+
+      const toPAC = new PlaceAutocompleteElement(opts);
+      toContainerRef.current!.appendChild(toPAC);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      toPAC.addEventListener("gmp-select", async (e: any) => {
+        const place = e.placePrediction.toPlace();
+        await place.fetchFields({ fields: ["formattedAddress"] });
+        setTo(place.formattedAddress);
+      });
+    });
+  }, []);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setResults(null);
     setLoading(true);
-
     try {
       const data = await apiFetch<RoutesResponse>(
         `/routes?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&mode=${mode}`
@@ -60,26 +106,14 @@ export default function Home() {
             <label className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
               From
             </label>
-            <input
-              type="text"
-              value={from}
-              placeholder="e.g. Centraal Station, Amsterdam"
-              onChange={(e) => setFrom(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
-            />
+            <div ref={fromContainerRef} className="autocomplete-container" />
           </div>
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
               To
             </label>
-            <input
-              type="text"
-              value={to}
-              placeholder="e.g. Vondelpark, Amsterdam"
-              onChange={(e) => setTo(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
-            />
+            <div ref={toContainerRef} className="autocomplete-container" />
           </div>
 
           <div className="flex gap-3">
