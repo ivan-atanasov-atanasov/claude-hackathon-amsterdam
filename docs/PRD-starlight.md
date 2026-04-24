@@ -2,11 +2,11 @@
 
 ## Overview
 
-Stella.app calculates the safest cycling or walking route between two points in Amsterdam — not the fastest, the safest *for women*. Enter a start, destination, departure time, and travel mode; get a single safest route with estimated travel time, a plain-language explanation of *why* this route was chosen, and contextual safety tips tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps — no new habit required.
+Stella.app calculates the safest cycling or walking route between two points in Amsterdam — not the fastest, the safest *for women*. Enter a start, destination, departure time, and travel mode; get a single safest route with estimated travel time, a plain-language list of the specific streets, squares, parks, and areas the route is **avoiding**, and contextual safety tips tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps — no new habit required.
 
 The weighted safety score draws on real Amsterdam open data (street lighting, citizen incident reports, nuisance and camera zones, pedestrian counts, building density, neighborhood safety index), the Pointer/KRO-NCRV national unsafe-places map, and the Gemeente Amsterdam O&S survey that mapped this problem in the first place.
 
-Route selection is **fully deterministic**. Claude is used only to narrate the chosen route and generate personalized tips — never to pick the route.
+Route selection is **fully deterministic**. Claude is used only to name the streets and areas the route avoids and generate personalized tips — never to pick the route.
 
 Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 25–26, 2026), in support of NGO **Wij eisen de nacht op**.
 
@@ -122,7 +122,7 @@ This is Stella.app. Inspired by **Wij Eisen de Nacht Op**.
 
 1. **Route input** — start address, destination, departure time (defaults to now), mode (cycling / walking)
 2. **Single safest route** — one route, chosen deterministically from Google Directions alternatives by safety score (internal only); shows distance and estimated travel time
-3. **AI-generated "Why this route" explanation** — 2–3 sentences in plain language, e.g. *"This route avoids Leidseplein after 23:00 and uses Haarlemmerdijk, which has dense lighting and steady foot traffic."*
+3. **AI-generated "What this route avoids" summary** — 2–3 sentences in plain language that name the specific streets, squares, parks, or areas the route is routing around, e.g. *"This route avoids Leidseplein, the Vondelpark south edge, and the Overtoom tunnel after dark — all flagged unsafe by women in the 2025 survey."* The summary focuses on **avoided places**, not a general justification of the chosen path.
 4. **Contextual safety tips** — 3–5 tips on the results page, tailored to route segments, time of day, and mode. Triggers include: passing a known hotspot type (park / square / station), post-sunset departure, walking vs. cycling
 5. **Open in Google Maps** — one tap launches the route in Google Maps with the correct mode
 6. **Time-aware scoring** — the internal score and tips both shift between day, evening, and late night
@@ -147,7 +147,7 @@ This is Stella.app. Inspired by **Wij Eisen de Nacht Op**.
 
 - As a woman about to cycle home at 23:30, I enter my start and destination and see one clearly safest route with travel time, so I can leave feeling confident.
 - As a woman planning a night out, I set a future departure time and see how the tips change versus leaving now.
-- As a user, I read the "why this route" explanation and 3–5 personalized tips, and I understand what the product is doing for me without reading a manual.
+- As a user, I read the "what this route avoids" summary and 3–5 personalized tips, and I understand which specific streets, squares, and areas the product is routing me around without reading a manual.
 - As a user, I tap "Open in Google Maps" and the safest route launches in the mode I selected, with no retyping.
 
 ---
@@ -163,7 +163,7 @@ This is Stella.app. Inspired by **Wij Eisen de Nacht Op**.
 | Database | Supabase (PostgreSQL + PostGIS) | Stores pre-computed safety grid and seed data |
 | Routing | Google Maps Directions API | Cycling + walking alternatives |
 | Map display | Google Maps JavaScript API | Consistent with handoff deep-link |
-| AI narration + tips | Claude `claude-sonnet-4-6` via Anthropic SDK | Prompt caching on system prompt |
+| AI avoidance summary + tips | Claude `claude-sonnet-4-6` via Anthropic SDK | Prompt caching on system prompt |
 
 ### Data sources
 
@@ -186,7 +186,7 @@ All Amsterdam Data API endpoints (`api.data.amsterdam.nl/v1/`) require a free AP
 The AI boundary is narrow on purpose — it keeps the product reviewable, fast, and reliable.
 
 - **Deterministic (no LLM):** route candidate fetching, safety grid computation, scoring, route selection.
-- **AI-assisted (Claude):** the "why this route" explanation and contextual safety tips.
+- **AI-assisted (Claude):** the "what this route avoids" summary (names the specific streets, parks, squares, and areas the route is routing around) and contextual safety tips.
 - **Inputs to Claude:** route polyline summary, grid cells crossed, per-layer subscores, departure time, mode, and which unsafe-area polygons the route intersects. **No PII.** Addresses are resolved to coordinates before leaving the server.
 - **Budget:** one Claude call per `/routes` request; hard timeout 2s; prompt caching on the system prompt keeps repeat latency low.
 - **Failure mode:** on AI error or timeout, the API returns `ai_status: "fallback"` and the UI renders a static fallback tip list. The product must work end-to-end without the AI.
@@ -202,7 +202,7 @@ Static layers (lighting, building density, overlast zones, camera zones, inciden
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | Health check |
-| GET | `/routes?from&to&time&mode` | Returns safest route, AI explanation, and tips |
+| GET | `/routes?from&to&time&mode` | Returns safest route, AI avoidance summary, and tips |
 | GET | `/safety?lat&lng&radius&time` | Returns internal safety score for a location at a given time (debug / future use) |
 | GET | `/tips?time&mode&hotspots` | Regenerates tips without re-routing (used by client if user tweaks time) |
 
@@ -216,7 +216,10 @@ Static layers (lighting, building density, overlast zones, camera zones, inciden
     "duration_min": 12,
     "hotspots_passed": ["park", "station"]
   },
-  "explanation": "This route avoids Leidseplein after 23:00 and uses Haarlemmerdijk, which has dense lighting and steady foot traffic.",
+  "avoids": {
+    "areas": ["Leidseplein", "Vondelpark south edge", "Overtoom tunnel"],
+    "summary": "This route avoids Leidseplein, the Vondelpark south edge, and the Overtoom tunnel after dark — all flagged unsafe by women in the 2025 survey."
+  },
   "tips": [
     "You pass Vondelpark at 23:10 — stay on the north edge path, it's better lit.",
     "Share your live location with a friend before leaving.",
@@ -226,7 +229,7 @@ Static layers (lighting, building density, overlast zones, camera zones, inciden
 }
 ```
 
-`ai_status` is `"ok"` or `"fallback"`. When `"fallback"`, `explanation` may be empty and `tips` comes from the static list.
+`avoids.areas` is the machine-readable list of avoided place names (rendered in the UI as chips/pills). `avoids.summary` is the AI-generated plain-language sentence built from that list. `ai_status` is `"ok"` or `"fallback"`. When `"fallback"`, `avoids.summary` may be empty (the `areas` list is still populated deterministically from the scorer) and `tips` comes from the static list.
 
 ---
 
@@ -333,7 +336,7 @@ Weights sum to ≈1.0 on the positive side; penalties subtract. Night windows sh
 
 ### Unsafe areas (single tier)
 
-The `unsafe_areas` table is loaded from three parts of the 2025 survey and treated uniformly — no "hard-to-avoid" discount. If the only viable route still crosses one, we return it and the narration acknowledges the trade-off honestly.
+The `unsafe_areas` table is loaded from three parts of the 2025 survey and treated uniformly — no "hard-to-avoid" discount. If the only viable route still crosses one, we return it and the avoidance summary acknowledges the trade-off honestly (naming the area that couldn't be routed around).
 
 - **Survey Table 1 clusters** (22 named unsafe clusters + 8 park clusters + 8 route corridors, organized by stadsdeel).
 - **§1.7 hard-to-avoid corridors** (e.g. Gooiseweg/Weesperzijde, Diemerpark, Buiksloterweg, Krugerplein, Transformatorweg, Delflandplein, Rembrandtpark, Sloterplas roundabout).
@@ -383,10 +386,10 @@ Initial weights come from the 2025 survey's stated fear factors (Table 2) — an
 Demo checklist:
 
 1. Enter a start + destination in Amsterdam → safest route with travel time in under 5 seconds
-2. "Why this route" explanation rendered in plain language
+2. "What this route avoids" summary rendered in plain language, naming specific streets / squares / parks / areas being routed around
 3. Changing departure time midday ↔ midnight visibly changes the selected route and tips
 4. Changing mode cycling ↔ walking visibly changes tips
-5. AI explanation renders within 2s p95; on failure, fallback tips render without UI breakage
+5. AI avoidance summary renders within 2s p95; on failure, the deterministic `avoids.areas` chips and fallback tips still render without UI breakage
 6. Landing page surfaces a grounding stat ("78% of young women have been afraid cycling…")
 7. "Open in Google Maps" launches the correct route and mode
 8. A non-technical person understands the product in under 30 seconds
@@ -405,5 +408,6 @@ Demo checklist:
 
 ---
 
+*Version: 4.1 — 2026-04-24 — reframed AI output from "why this route was chosen" to "what this route avoids" (naming specific streets, squares, parks, and areas being routed around); API now returns `avoids: { areas, summary }` instead of `explanation`.*
 *Version: 4.0 — 2026-04-24 — renamed Starlight → Stella.app; added Pointer data source, new framing ("invisible mental load", men-vs-women safety definitions), and mission statement.*
 *NGO partner: Wij eisen de nacht op*
