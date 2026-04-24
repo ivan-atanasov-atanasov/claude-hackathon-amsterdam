@@ -125,6 +125,7 @@ All Amsterdam Data API endpoints (`api.data.amsterdam.nl/v1/`) require a free AP
 | Unsafe-area seed | *Sociale veiligheid op de fiets 2025* Tables 1 + §1.7 + §1.8 | Initial unsafe polygons/corridors, loaded from the survey into `unsafe_areas` |
 | Park / green polygons | Amsterdam Data API `/v1/functionele_gebieden` | Geometry for named parks (Vondelpark, Oosterpark, etc.) without manual curation |
 | Neighborhood polygons | Amsterdam Data API `/v1/gebieden` | Buurt / wijk boundaries for joining the Veiligheidsindex baseline |
+| Crowdsourced unsafe spots | Pointer / KRO-NCRV `data.kro-ncrv.nl/2025/onveilige-plekken-kaart-2/assets/20-11-25/webversie_mapped.csv` | ~2,000 geocoded location pins submitted by women across NL; filtered to Amsterdam; loaded into `unsafe_areas` with `source = 'pointer_crowdsource'`; enriches `hotspot_penalty` coverage beyond the 2025 survey clusters |
 
 ### AI usage boundary
 
@@ -211,9 +212,11 @@ Static layers (lighting, building density, overlast zones, camera zones, inciden
 |--------|------|-------|
 | id | uuid | Primary key |
 | name | text | Display name (e.g. `Leidseplein`, `Gooiseweg-corridor`) |
-| kind | text | `park` \| `square` \| `station` \| `corridor` \| `cluster` |
-| source | text | `survey_cluster` (Table 1) \| `survey_corridor` (§1.7) \| `survey_hotspot_type` (§1.8) \| `curated` |
-| geometry | jsonb | GeoJSON polygon or linestring |
+| kind | text | `park` \| `square` \| `station` \| `corridor` \| `cluster` \| `crowdsourced_point` |
+| source | text | `survey_cluster` (Table 1) \| `survey_corridor` (§1.7) \| `survey_hotspot_type` (§1.8) \| `curated` \| `pointer_crowdsource` |
+| geometry | jsonb | GeoJSON polygon, linestring, or Point (for Pointer crowdsourced pins) |
+| reden | text | Reason from Pointer data: `environment` \| `person` \| `other` (nullable) |
+| tijdstip | text | Time-of-day from Pointer data: `dark` \| `daytime` \| `any` (nullable) |
 
 ### `buurt_baseline`
 | Column | Type | Notes |
@@ -309,6 +312,7 @@ Initial weights come from the 2025 survey's stated fear factors (Table 2) — an
 | Park polygons | **Yes** | Amsterdam Data API `/v1/functionele_gebieden` |
 | Pedestrian counts (crowdmonitor) | **Partial** | Real sensor data where coverage exists; time-of-day × street-type heuristic fallback elsewhere, flagged in UI |
 | 2025 cyclist-safety survey stats | **Real** | Framing + empirical layer weights from Table 2 |
+| Pointer crowdsourced unsafe spots | **Yes** | Public CSV from `data.kro-ncrv.nl`; ~2,000 geocoded pins from women across NL; filtered to Amsterdam municipality; imported via `backend/scripts/import_pointer_data.py` |
 
 ---
 
@@ -347,8 +351,9 @@ Demo checklist:
 - Amsterdam Data API keys (free) — https://keys.api.data.amsterdam.nl/clients/v1/
 - NGO partner — *Wij eisen de nacht op* — https://wijeisendenachtop.nl
 - Google Maps Directions API — cycling + walking modes with alternatives
+- Pointer / KRO-NCRV crowdsourced unsafe locations dataset — `data.kro-ncrv.nl/2025/onveilige-plekken-kaart-2/assets/20-11-25/webversie_mapped.csv` (CSV) + `webversie_mapped.json` (lookup table)
 
 ---
 
-*Version: 3.0 — 2026-04-22*
+*Version: 3.1 — 2026-04-24*
 *NGO partner: Wij eisen de nacht op*
