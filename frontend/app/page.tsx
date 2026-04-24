@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { apiFetch } from "@/lib/api";
 
 interface RouteResult {
@@ -14,49 +14,13 @@ interface RoutesResponse {
   mode: string;
 }
 
-declare global {
-  interface Window {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    google: any;
-    initAutocomplete: () => void;
-  }
-}
-
 export default function Home() {
-  const fromRef = useRef<HTMLInputElement>(null);
-  const toRef = useRef<HTMLInputElement>(null);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [mode, setMode] = useState<"bicycling" | "walking">("bicycling");
   const [results, setResults] = useState<RouteResult[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!apiKey || document.getElementById("google-maps-script")) return;
-
-    window.initAutocomplete = () => {
-      if (!fromRef.current || !toRef.current) return;
-      const opts = { componentRestrictions: { country: "nl" } };
-
-      const fromAC = new window.google.maps.places.Autocomplete(fromRef.current, opts);
-      fromAC.addListener("place_changed", () => {
-        setFrom(fromRef.current?.value ?? "");
-      });
-
-      const toAC = new window.google.maps.places.Autocomplete(toRef.current, opts);
-      toAC.addListener("place_changed", () => {
-        setTo(toRef.current?.value ?? "");
-      });
-    };
-
-    const script = document.createElement("script");
-    script.id = "google-maps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=initAutocomplete`;
-    script.async = true;
-    document.head.appendChild(script);
-  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -65,10 +29,8 @@ export default function Home() {
     setLoading(true);
 
     try {
-      const origin = fromRef.current?.value ?? from;
-      const destination = toRef.current?.value ?? to;
       const data = await apiFetch<RoutesResponse>(
-        `/routes?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}`
+        `/routes?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&mode=${mode}`
       );
       setResults(data.routes);
     } catch (err) {
@@ -99,9 +61,9 @@ export default function Home() {
               From
             </label>
             <input
-              ref={fromRef}
               type="text"
-              placeholder="Start address"
+              value={from}
+              placeholder="e.g. Centraal Station, Amsterdam"
               onChange={(e) => setFrom(e.target.value)}
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
             />
@@ -112,9 +74,9 @@ export default function Home() {
               To
             </label>
             <input
-              ref={toRef}
               type="text"
-              placeholder="Destination address"
+              value={to}
+              placeholder="e.g. Vondelpark, Amsterdam"
               onChange={(e) => setTo(e.target.value)}
               className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
             />
