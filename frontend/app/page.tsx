@@ -3,11 +3,15 @@
 import { useState } from "react";
 import { apiFetch } from "@/lib/api";
 import { AddressInput } from "@/components/AddressInput";
+import { MapPreview } from "@/components/MapPreview";
 
 interface RouteResult {
   summary: string;
   distance_text: string;
   duration_text: string;
+  polyline: string;
+  start_location: { lat: number; lng: number };
+  end_location: { lat: number; lng: number };
 }
 
 interface RoutesResponse {
@@ -124,6 +128,11 @@ export default function Home() {
                 </p>
               </div>
             ))}
+            <MapPreview
+              polyline={results[0].polyline}
+              startLocation={results[0].start_location}
+              endLocation={results[0].end_location}
+            />
           </div>
         )}
       </main>

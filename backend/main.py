@@ -65,6 +65,9 @@ async def get_routes(
             "distance_text": r["legs"][0]["distance"]["text"],
             "duration_s": r["legs"][0]["duration"]["value"],
             "duration_text": r["legs"][0]["duration"]["text"],
+            "polyline": r["overview_polyline"]["points"],
+            "start_location": r["legs"][0]["start_location"],
+            "end_location": r["legs"][0]["end_location"],
         }
         for r in data["routes"]
     ]
