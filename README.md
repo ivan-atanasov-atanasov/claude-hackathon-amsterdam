@@ -8,7 +8,7 @@
 
 ## What We're Building
 
-**Starlight** — a route planner that helps women in Amsterdam travel safely between any two points.
+**Stella.app** — a route planner that helps women in Amsterdam travel safely between any two points.
 
 Enter a start address, destination, departure time, and travel mode — get the single safest route with estimated travel time and an AI-generated plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
 

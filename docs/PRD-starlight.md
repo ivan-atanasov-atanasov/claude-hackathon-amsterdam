@@ -1,8 +1,10 @@
-# PRD — Starlight
+# PRD — Stella.app
 
 ## Overview
 
-Starlight is a route planner that helps women in Amsterdam travel safely between any two points. Enter a start, destination, departure time, and travel mode — get the single safest route with estimated travel time, chosen from real Amsterdam open data (street lighting, citizen incident reports, nuisance and camera zones, pedestrian counts, building density, neighborhood safety index) and with a plain-language explanation of *why* this route was chosen. Contextual safety tips appear alongside the route, tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps.
+Stella.app calculates the safest cycling or walking route between two points in Amsterdam — not the fastest, the safest *for women*. Enter a start, destination, departure time, and travel mode; get a single safest route with estimated travel time, a plain-language explanation of *why* this route was chosen, and contextual safety tips tailored to time of day, mode, and hotspots along the path. One tap opens the route in Google Maps — no new habit required.
+
+The weighted safety score draws on real Amsterdam open data (street lighting, citizen incident reports, nuisance and camera zones, pedestrian counts, building density, neighborhood safety index), the Pointer/KRO-NCRV national unsafe-places map, and the Gemeente Amsterdam O&S survey that mapped this problem in the first place.
 
 Route selection is **fully deterministic**. Claude is used only to narrate the chosen route and generate personalized tips — never to pick the route.
 
@@ -10,23 +12,54 @@ Built for the **Whale x Anthropic: Claude Code Hackathon — Amsterdam** (April 
 
 ---
 
-## Problem Statement
+## The Problem
 
-Women in Amsterdam avoid cycling and walking at night because they don't know which route is safe. No existing tool routes women through well-lit, low-incident streets. The municipality already publishes the data needed to do better — lighting, incidents, hotspot geometry, camera zones, pedestrian counts — but no tool brings it together for the rider.
+Amsterdam is one of the world's greatest cycling cities. Two thirds of Amsterdammers cycle regularly. But that freedom isn't equally shared.
 
-Grounding from Gemeente Amsterdam's *Sociale veiligheid op de fiets 2025* survey (n=1,478):
+According to Gemeente Amsterdam's own research, **78% of young women feel afraid of cycling in Amsterdam**. **22%** have actually been harassed on their bike. The fear peaks at night — exactly when women most need to get home.
+
+**77% of young women cope** by texting when they leave, sharing their live location, or calling someone while cycling in the dark. Sometimes just pretending to. This is the invisible mental load women carry every time they get on a bike after sunset.
+
+Across the Netherlands, nearly **10,000 women** marked specific unsafe spots on a national map. On **more than half**, something had already happened to them or someone they know. **70%** say the built environment makes it worse: broken streetlights, no alternative routes around dark or isolated areas.
+
+**48% of women regularly take detours** to avoid unsafe spots. **39% sometimes don't go out alone at all.** Women are already routing for safety — manually, in their heads, every single time.
+
+### The insight that changes everything
+
+Existing navigation apps optimize for speed. Where safety tools exist, they're built around the wrong definition — designed around what makes *men* feel unsafe.
+
+These are not the same thing.
+
+- **For men**, safety means: fatbikes, unclear intersections, narrow cycling lanes.
+- **For women**, safety means: other people around, good lighting, no high bushes, no blind corners.
+
+No navigation tool makes this distinction. Stella.app does.
+
+### Grounding data
+
+From Gemeente Amsterdam's *Sociale veiligheid op de fiets 2025* survey (n=1,478):
 
 | Stat | Value |
 |------|------:|
-| Adult cyclists who fear harassment while cycling | **47%** |
 | Young women who have been afraid on the bike | **78%** |
 | Older men who have been afraid on the bike (contrast) | 15% |
 | Cyclists who can name a specific location where they were harassed | **22%** |
-| Cyclists who already avoid certain routes | **~50%** |
+| Young women who cope via texting / live-location / fake calls | **77%** |
+| Women who regularly take detours to avoid unsafe spots | **48%** |
+| Women who sometimes don't go out alone at all | **39%** |
+| Adult cyclists who fear harassment while cycling | **47%** |
 
-Hotspot types named in the report: **parks, entertainment squares, train stations** — distributed across the whole city, not one district. Women's top-requested fixes are **better lighting, more supervision / cameras, and safer routes**. Women more often than men mitigate by sharing live location or switching transport mode. Starlight directly addresses these asks.
+From the Pointer/KRO-NCRV national unsafe-places map:
 
-The survey also quantifies *why* a place feels unsafe (women respondents, multi-select):
+| Stat | Value |
+|------|------:|
+| Women who marked specific unsafe spots on the national map | **~10,000** |
+| Marked spots where something already happened to the woman or someone she knows | **>50%** |
+| Women citing the built environment (lighting, lack of alternatives) as making it worse | **70%** |
+
+Hotspot types named in the Amsterdam report: **parks, entertainment squares, train stations** — distributed across the whole city, not one district. Women's top-requested fixes are **better lighting, more supervision / cameras, and safer routes**. Women more often than men mitigate by sharing live location or switching transport mode. Stella.app directly addresses these asks.
+
+The Amsterdam survey also quantifies *why* a place feels unsafe (women respondents, multi-select):
 
 | Factor cited | % women citing |
 |---|---:|
@@ -44,6 +77,28 @@ These percentages seed the initial layer weights in the scoring model — no lon
 
 ---
 
+## The Solution
+
+Stella.app calculates the safest cycling or walking route from A to B in Amsterdam. Not the fastest — the safest for women. Its weighted safety score draws on:
+
+- **Lighting infrastructure** — where the streetlights are and where they aren't.
+- **Incident reports** — where harassment and public-space incidents have actually been reported.
+- **Social safety data** — spots perceived as unsafe by women, locations where incidents have occurred, and avoidance of areas that are isolated, dark, or quiet.
+
+The data comes from **Gemeente Amsterdam Onderzoek & Statistiek**, the **Pointer/KRO-NCRV national unsafe-places map**, and the **Amsterdam open data API** — built with direct input from the city researchers who mapped this problem.
+
+Route calculated → opens straight in Google Maps. No friction. No new habit.
+
+---
+
+## The Mission
+
+78% of young Amsterdam women feel afraid on their bike. We're changing that — and giving women back the night.
+
+This is Stella.app. Inspired by **Wij Eisen de Nacht Op**.
+
+---
+
 ## Target Users
 
 ### Primary — women moving through Amsterdam at night
@@ -51,7 +106,7 @@ These percentages seed the initial layer weights in the scoring model — no lon
 - Cycling or walking
 - Planning ahead from home, or deciding in the moment before leaving
 - Wants to feel confident without doing manual research
-- Already uses Google Maps — Starlight hands off into it, not competing
+- Already uses Google Maps — Stella.app hands off into it, not competing
 
 **Jobs to be done:** *pick a route I trust → share it if I want → leave on time.*
 
@@ -350,5 +405,5 @@ Demo checklist:
 
 ---
 
-*Version: 3.0 — 2026-04-22*
+*Version: 4.0 — 2026-04-24 — renamed Starlight → Stella.app; added Pointer data source, new framing ("invisible mental load", men-vs-women safety definitions), and mission statement.*
 *NGO partner: Wij eisen de nacht op*

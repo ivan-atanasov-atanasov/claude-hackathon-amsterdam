@@ -1,4 +1,4 @@
-# Tasks — Starlight
+# Tasks — Stella.app
 
 ## Implementation Order
 
@@ -128,7 +128,7 @@
 **Complexity:** Low | **Est:** 1h
 
 - Mobile-friendly layout pass
-- Starlight branding + tagline on home page
+- Stella.app branding + tagline on home page
 - "Powered by open Amsterdam data" footer with source links
 - Smoke test the demo script end-to-end
 
