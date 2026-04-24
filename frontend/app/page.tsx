@@ -52,7 +52,7 @@ export default function Home() {
             Anthropic × Claude × Amsterdam × 2026
           </p>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 leading-tight">
-            Starlight
+            Stella.app
           </h1>
           <p className="text-base text-zinc-500 dark:text-zinc-400">
             Find the safest route through Amsterdam.

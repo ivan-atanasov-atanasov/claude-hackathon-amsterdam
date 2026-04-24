@@ -15,7 +15,7 @@
 - Note: `traffic_score` is computed per request, not stored
 
 **Files:**
-- `backend/migrations/001_starlight_schema.sql`
+- `backend/migrations/001_stella_schema.sql`
 - `backend/scripts/seed_lighting.py`
 - `backend/scripts/seed_incidents.py`
 - `backend/scripts/seed_hotspots.py`
