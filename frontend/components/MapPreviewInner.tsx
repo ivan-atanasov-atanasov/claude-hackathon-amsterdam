@@ -18,14 +18,16 @@ function decodePolyline(encoded: string): [number, number][] {
   return points;
 }
 
-function scoreToColor(score: number, hotspotPenalty: number): string {
-  if (hotspotPenalty > 0) return "#ff2222";   // known hotspot — always red
-  if (score >= 0.72) return "#22c55e";         // safe — green
-  if (score >= 0.50) return "#facc15";         // moderate — yellow
-  return "#ef4444";                            // risky — red
-}
-
 interface GridCell { lat: number; lng: number; overview_score: number; hotspot_penalty: number; }
+
+// Only render cells that are actually risky — safe areas don't need marking.
+// Returns null for safe cells so they are skipped entirely.
+function riskStyle(cell: GridCell): { color: string; opacity: number; radius: number } | null {
+  if (cell.hotspot_penalty > 0)     return { color: "#cc2200", opacity: 0.55, radius: 90 };
+  if (cell.overview_score < 0.45)   return { color: "#e03000", opacity: 0.40, radius: 80 };
+  if (cell.overview_score < 0.60)   return { color: "#e06000", opacity: 0.28, radius: 70 };
+  return null; // safe — skip
+}
 
 interface Props {
   polyline?: string;
@@ -95,11 +97,13 @@ export default function MapPreviewInner({
             .then(({ cells }: { cells: GridCell[] }) => {
               if (!mapRef.current) return;
               cells.forEach((cell) => {
+                const style = riskStyle(cell);
+                if (!style) return;
                 L.circle([cell.lat, cell.lng], {
-                  radius: 60,
-                  color: "transparent",
-                  fillColor: scoreToColor(cell.overview_score, cell.hotspot_penalty),
-                  fillOpacity: 0.28,
+                  radius: style.radius,
+                  stroke: false,
+                  fillColor: style.color,
+                  fillOpacity: style.opacity,
                   interactive: false,
                 }).addTo(map);
               });
