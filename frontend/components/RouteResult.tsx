@@ -119,6 +119,13 @@ const KIND_LABEL: Record<string, string> = {
   corridor: "ISOLATED",
 };
 
+const KIND_COLOR: Record<string, string> = {
+  park: "#dd2200",
+  square: "#ff6600",
+  station: "#ff6600",
+  corridor: "#ff6600",
+};
+
 export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived }: Props) {
   const [etaOpen, setEtaOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -160,6 +167,21 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
           boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
         }}>{routeLabel}</div>
 
+        {/* Reported incidents legend */}
+        <div style={{
+          position: "absolute", bottom: 52, left: 12, zIndex: 600,
+          background: "rgba(10,10,40,0.78)", borderRadius: "10px", padding: "6px 10px",
+          backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.1)",
+          display: "flex", alignItems: "center", gap: "8px",
+        }}>
+          <div style={{ display: "flex", gap: "3px", alignItems: "center" }}>
+            {[0.2, 0.5, 0.8, 1].map((o, i) => (
+              <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: `rgba(220,34,0,${o})` }} />
+            ))}
+          </div>
+          <span style={{ color: "rgba(255,255,255,0.65)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em" }}>REPORTED INCIDENTS</span>
+        </div>
+
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "56px", background: `linear-gradient(transparent, ${BD})`, pointerEvents: "none", zIndex: 500 }} />
       </div>
 
@@ -192,56 +214,50 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
 
 
         <div style={{ color: "rgba(255,255,255,0.38)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.13em", textTransform: "uppercase" }}>
-          About Stella
+          Route avoids
         </div>
 
-        {/* Why is this a safer route? — specific avoidances from Pointer + named hotspots */}
-        <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.07)" }}>
-          <div style={{ height: "3px", background: Y, borderRadius: "14px 14px 0 0" }} />
-          <div style={{ padding: "13px 15px" }}>
-            <div style={{ color: Y, fontWeight: 700, fontSize: "16px", marginBottom: "9px" }}>
-              Why is this a safer route?
-            </div>
-
-            {(avoidedNamed.length > 0 || avoidedPointerCount > 0) ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                {avoidedNamed.map((a) => (
-                  <div key={a.name} style={{ display: "flex", alignItems: "flex-start", gap: "9px" }}>
-                    <span style={{ color: Y, fontSize: "14px", lineHeight: "20px", flexShrink: 0 }}>✦</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
-                        <span style={{ color: "#fff", fontWeight: 700, fontSize: "14px" }}>{a.name}</span>
-                        <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "5px", padding: "1px 6px", color: "rgba(255,255,255,0.55)", fontSize: "9px", fontWeight: 700, letterSpacing: "0.05em" }}>
-                          {KIND_LABEL[a.kind] ?? a.kind.toUpperCase()}
-                        </span>
-                      </div>
-                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "12.5px", lineHeight: 1.45, marginTop: "1px" }}>
-                        {a.reason}
-                      </div>
+        {/* Avoidance cards — horizontal scrollable row */}
+        {(avoidedNamed.length > 0 || avoidedPointerCount > 0) ? (
+          <div style={{ display: "flex", gap: "8px", overflowX: "auto", WebkitOverflowScrolling: "touch" as "touch" }}>
+            {avoidedNamed.map((a) => {
+              const color = KIND_COLOR[a.kind] ?? "#ff6600";
+              return (
+                <div key={a.name} style={{ flex: "0 0 calc(50% - 4px)", minWidth: "140px", background: "rgba(255,255,255,0.05)", borderRadius: "13px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
+                  <div style={{ height: "3px", background: color }} />
+                  <div style={{ padding: "10px 11px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5px" }}>
+                      <span style={{ color: "#fff", fontWeight: 700, fontSize: "13px" }}>{a.name}</span>
+                      <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "5px", padding: "2px 6px", color: "rgba(255,255,255,0.5)", fontSize: "9px", fontWeight: 700, whiteSpace: "nowrap", marginLeft: "4px", marginTop: "1px" }}>
+                        {KIND_LABEL[a.kind] ?? a.kind.toUpperCase()}
+                      </span>
                     </div>
+                    <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "11px", lineHeight: 1.45 }}>{a.reason}</div>
                   </div>
-                ))}
-                {avoidedPointerCount > 0 && (
-                  <div style={{ display: "flex", alignItems: "flex-start", gap: "9px" }}>
-                    <span style={{ color: Y, fontSize: "14px", lineHeight: "20px", flexShrink: 0 }}>✦</span>
-                    <div>
-                      <div style={{ color: "#fff", fontWeight: 700, fontSize: "14px" }}>
-                        {avoidedPointerCount} user-reported unsafe spot{avoidedPointerCount === 1 ? "" : "s"}
-                      </div>
-                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "12.5px", lineHeight: 1.45, marginTop: "1px" }}>
-                        Locations where women told us they felt unsafe (Pointer crowdsourced data).
-                      </div>
-                    </div>
+                </div>
+              );
+            })}
+            {avoidedPointerCount > 0 && (
+              <div style={{ flex: "0 0 calc(50% - 4px)", minWidth: "140px", background: "rgba(255,255,255,0.05)", borderRadius: "13px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <div style={{ height: "3px", background: "#ff6600" }} />
+                <div style={{ padding: "10px 11px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5px" }}>
+                    <span style={{ color: "#fff", fontWeight: 700, fontSize: "13px" }}>{avoidedPointerCount} unsafe spot{avoidedPointerCount === 1 ? "" : "s"}</span>
+                    <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "5px", padding: "2px 6px", color: "rgba(255,255,255,0.5)", fontSize: "9px", fontWeight: 700, whiteSpace: "nowrap", marginLeft: "4px", marginTop: "1px" }}>REPORTED</span>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ color: "rgba(255,255,255,0.62)", fontSize: "13.5px", lineHeight: 1.5 }}>
-                This route stays clear of dark stretches and unsafe spots reported by women. No specific hotspots flagged on the way.
+                  <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "11px", lineHeight: 1.45 }}>Women-reported unsafe locations (Pointer data)</div>
+                </div>
               </div>
             )}
           </div>
-        </div>
+        ) : (
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "13px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ height: "3px", background: "#3B5BDB" }} />
+            <div style={{ padding: "10px 13px", color: "rgba(255,255,255,0.55)", fontSize: "12px", lineHeight: 1.5 }}>
+              No specific hotspots on this route — clear of dark stretches and unsafe spots reported by women.
+            </div>
+          </div>
+        )}
 
         {/* Collapsible "About Stella" — data sources + mission */}
         <button onClick={() => setAboutOpen((v) => !v)} style={{
