@@ -111,8 +111,6 @@ def build_records(rows: list[dict], amsterdam_gm: str | None) -> list[dict]:
                 "kind": "crowdsourced_point",
                 "source": "pointer_crowdsource",
                 "geometry": json.dumps({"type": "Point", "coordinates": [lng, lat]}),
-                "reden": REDEN_MAP.get(reden_raw),
-                "tijdstip": TIJDSTIP_MAP.get(tijdstip_raw),
             }
         )
 
