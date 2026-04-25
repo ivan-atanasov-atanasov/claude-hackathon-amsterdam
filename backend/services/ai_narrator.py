@@ -19,23 +19,28 @@ import anthropic
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM_PROMPT = """You are Stella, a women's safety cycling assistant for Amsterdam.
-Your job is to explain — in plain, reassuring language — what a recommended cycling route avoids and provide actionable safety tips.
+_SYSTEM_PROMPT = """You are Stella, a safety companion for women cycling in Amsterdam at night.
+Your job is to give ONE focused, practical safety tip tailored to this specific journey — time of day, route conditions, and the user's context as a woman cycling alone.
 
 Guidelines:
-- Address the user directly ("Your route…", "We've routed you…")
-- Be concise: avoidance summary in 1–2 sentences, 3–5 short tips
-- Focus on what is avoided (dark areas, incident hotspots, isolated paths) rather than what was chosen
-- Tips should be specific to the time of day and areas passed
-- Never be alarmist; keep a calm, empowering tone
+- Write exactly ONE tip, 1–2 sentences max
+- Make it concrete and actionable for a woman cycling alone in Amsterdam
+- Address real women's safety concerns: street harassment, isolated stretches, poor lighting, staying visible, trusting instincts, having an exit plan
+- Tailor to the time of day (daytime / evening / night) and the specific hazards on this route
+- Be empowering and direct, not patronising or generic
+- Examples of good tips:
+  * "If anyone follows you on Nieuwmarkt, cycle straight to the nearest café or Albert Heijn — don't head home."
+  * "At this hour the Westerpark underpass is quiet — keep your speed up and stay visible."
+  * "Pin your ETA now and share it before you leave; if you're more than 10 min late, someone will check."
+- Avoid generic advice like "stay safe" or "be aware of your surroundings"
 - Output valid JSON only — no prose outside the JSON object"""
 
 _FALLBACK_TIPS = [
-    "Stay on well-lit streets, especially after dark.",
-    "Share your ETA with a friend before heading out.",
-    "Trust your instincts — take a detour if something feels off.",
-    "Keep your phone charged and within reach.",
-    "Cycle at a confident pace; hesitation invites unwanted attention.",
+    "If anyone makes you feel uncomfortable, cycle straight to a busy spot — a bar, supermarket, or tram stop — rather than heading home.",
+    "Pin your ETA and share it before you leave. If you're 10 min late, someone will know.",
+    "Keep your speed up through quiet underpasses — confidence and pace deter unwanted attention.",
+    "Trust the instinct that says 'this doesn't feel right' — a longer detour through a busier street is always worth it.",
+    "Have your phone unlocked with a contact ready. You shouldn't need it, but it helps to know it's there.",
 ]
 
 _client: anthropic.AsyncAnthropic | None = None
@@ -79,19 +84,22 @@ def _build_user_prompt(
 
     return f"""Route details:
 - Safety score: {route_score:.1f}/10
-- Departure time: {departure_time.strftime('%H:%M')} ({time_label})
-- Travel mode: {mode}
-- Route avoids: {', '.join(avoidance_hints) if avoidance_hints else 'no specific hazards identified'}
-- Average lighting score: {avg_lighting:.2f}
-- Average incident safety: {avg_incidents:.2f}
+- Departure: {departure_time.strftime('%H:%M')} ({time_label})
+- Mode: {mode}
+- Hazards on route: {', '.join(avoidance_hints) if avoidance_hints else 'no specific hazards identified'}
+- Lighting quality: {avg_lighting:.2f} (0=very dark, 1=well-lit)
+- Incident safety: {avg_incidents:.2f} (0=many incidents, 1=very safe)
+
+The user is a woman cycling alone in Amsterdam. Give her ONE focused, situation-specific safety tip for this journey.
+Avoid generic advice. Reference the time of day and hazards. Be concrete about what to do, not just what to avoid.
 
 Respond with a JSON object exactly like this:
 {{
   "avoids": {{
     "areas": ["<area type 1>", "<area type 2>"],
-    "summary": "<1–2 sentence plain-language summary of what the route avoids>"
+    "summary": "<1–2 sentence summary of what the route avoids>"
   }},
-  "tips": ["<tip 1>", "<tip 2>", "<tip 3>"]
+  "tips": ["<one focused, women-safety-specific tip for this exact journey>"]
 }}"""
 
 

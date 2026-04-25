@@ -93,6 +93,7 @@ function EtaSheet({ onClose, route, toAddress }: { onClose: () => void; route: {
 
 interface Props {
   result: RouteResponse;
+  fromAddress?: string;
   toAddress?: string;
   tipsOverride?: { avoids: RouteAvoids; tips: string[]; ai_status: "ok" | "fallback" } | null;
   tipsLoading?: boolean;
@@ -102,7 +103,7 @@ interface Props {
   onArrived: () => void;
 }
 
-export function RouteResult({ result, toAddress, tipsOverride, tipsLoading, timeChanged, onUpdateTips, onBack, onArrived }: Props) {
+export function RouteResult({ result, fromAddress, toAddress, tipsOverride, tipsLoading, timeChanged, onUpdateTips, onBack, onArrived }: Props) {
   const [etaOpen, setEtaOpen] = useState(false);
   const { route, safety_score, mode } = result;
 
@@ -162,6 +163,30 @@ export function RouteResult({ result, toAddress, tipsOverride, tipsLoading, time
 
       {/* Panel */}
       <div className="panel-scroll" style={{ flex: 1, padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: "11px", overflowAnchor: "none" }}>
+
+        {/* From / To bar */}
+        <button onClick={onBack} style={{
+          display: "flex", alignItems: "center", gap: "10px",
+          background: "rgba(255,255,255,0.06)", borderRadius: "12px",
+          padding: "11px 14px", border: "1px solid rgba(255,255,255,0.08)",
+          cursor: "pointer", textAlign: "left", width: "100%", fontFamily: "inherit",
+        }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "5px" }}>
+              <div style={{ width: 8, height: 8, background: Y, borderRadius: "50%", flexShrink: 0 }} />
+              <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {fromAddress || "Start"}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "7px" }}>
+              <div style={{ width: 8, height: 8, border: `2px solid ${Y}`, borderRadius: "50%", flexShrink: 0 }} />
+              <span style={{ color: "#fff", fontSize: "12px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {toAddress || "Destination"}
+              </span>
+            </div>
+          </div>
+          <span style={{ color: Y, fontSize: "12px", fontWeight: 700, flexShrink: 0 }}>Edit ✎</span>
+        </button>
 
         <div style={{ color: "rgba(255,255,255,0.38)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.13em", textTransform: "uppercase" }}>
           Route avoids

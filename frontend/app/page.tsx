@@ -127,6 +127,7 @@ export default function Home() {
     return (
       <RouteResult
         result={result}
+        fromAddress={fromLabel || from}
         toAddress={to}
         tipsOverride={tipsOverride}
         tipsLoading={tipsLoading}
