@@ -66,8 +66,10 @@ export default function MapPreviewInner({
       });
       mapRef.current = map;
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      // CartoDB Voyager — clean, modern, colorful (matches design)
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
+        subdomains: "abcd",
       }).addTo(map);
 
       if (showRoute && polyline) {

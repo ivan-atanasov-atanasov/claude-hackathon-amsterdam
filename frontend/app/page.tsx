@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { fetchRoute, fetchTips } from "@/lib/api";
 import type { RouteResponse, TipsResponse } from "@/lib/api";
 import { AddressInput } from "@/components/AddressInput";
-import { MapPreview } from "@/components/MapPreview";
+import { MapIllustration } from "@/components/MapIllustration";
 import { RouteResult } from "@/components/RouteResult";
 import { PostRouteCheckin } from "@/components/PostRouteCheckin";
 
@@ -142,9 +142,9 @@ export default function Home() {
 
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: BD, fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif" }}>
-      {/* Map top section */}
+      {/* Map illustration — static SVG, no library loaded until route is shown */}
       <div style={{ position: "relative", height: "295px", flexShrink: 0 }}>
-        <MapPreview showRoute={false} />
+        <MapIllustration />
         {/* Gradient fade into blue */}
         <div style={{
           position: "absolute", inset: 0,
