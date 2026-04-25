@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { fetchRoute } from "@/lib/api";
 import type { RouteResponse } from "@/lib/api";
 import { AddressInput } from "@/components/AddressInput";
-import { MapIllustration } from "@/components/MapIllustration";
+import { MapPreview } from "@/components/MapPreview";
 import { RouteResult } from "@/components/RouteResult";
 import { PostRouteCheckin } from "@/components/PostRouteCheckin";
 
@@ -124,9 +124,9 @@ export default function Home() {
 
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: BD, fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif" }}>
-      {/* Map illustration — static SVG, no library loaded until route is shown */}
+      {/* Live map — Amsterdam centre, no route */}
       <div style={{ position: "relative", height: "295px", flexShrink: 0 }}>
-        <MapIllustration />
+        <MapPreview showRoute={false} mapCenter={[52.374, 4.895]} mapZoom={14} />
         {/* Gradient fade into blue */}
         <div style={{
           position: "absolute", inset: 0,
