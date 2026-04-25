@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import "leaflet/dist/leaflet.css";
 
 function decodePolyline(encoded: string): [number, number][] {
@@ -20,13 +20,11 @@ function decodePolyline(encoded: string): [number, number][] {
 
 interface GridCell { lat: number; lng: number; overview_score: number; hotspot_penalty: number; }
 
-// Only render cells that are actually risky — safe areas don't need marking.
-// Returns null for safe cells so they are skipped entirely.
-function riskStyle(cell: GridCell): { color: string; opacity: number; radius: number } | null {
-  if (cell.hotspot_penalty > 0)     return { color: "#cc2200", opacity: 0.55, radius: 90 };
-  if (cell.overview_score < 0.45)   return { color: "#e03000", opacity: 0.40, radius: 80 };
-  if (cell.overview_score < 0.60)   return { color: "#e06000", opacity: 0.28, radius: 70 };
-  return null; // safe — skip
+function cellIntensity(cell: GridCell): number | null {
+  if (cell.hotspot_penalty > 0)     return 1.0;
+  if (cell.overview_score < 0.45)   return 0.9;
+  if (cell.overview_score < 0.60)   return 0.6;
+  return null;
 }
 
 interface Props {
@@ -41,6 +39,9 @@ interface Props {
 
 let counter = 0;
 
+type LeafletType = typeof import("leaflet");
+type LeafletCircle = ReturnType<LeafletType["circle"]>;
+
 export default function MapPreviewInner({
   polyline,
   alternativePolyline,
@@ -51,14 +52,48 @@ export default function MapPreviewInner({
   mapZoom,
 }: Props) {
   const divRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<ReturnType<typeof import("leaflet")["map"]> | null>(null);
+  const mapRef = useRef<ReturnType<LeafletType["map"]> | null>(null);
   const idRef = useRef(`_stella_map_${++counter}`);
+  const zonesRef = useRef<LeafletCircle[]>([]);
+  const cellsRef = useRef<GridCell[]>([]);
+  const leafletRef = useRef<LeafletType | null>(null);
+  const [showZones, setShowZones] = useState(true);
+  const showZonesRef = useRef(true);
+
+  const applyZones = useCallback((L: LeafletType, map: ReturnType<LeafletType["map"]>, on: boolean) => {
+    zonesRef.current.forEach(c => c.remove());
+    zonesRef.current = [];
+    if (!on) return;
+    const renderer = L.canvas();
+    cellsRef.current.forEach((cell) => {
+      const intensity = cellIntensity(cell);
+      if (!intensity) return;
+      const rings = [
+        { r: 140, opacity: 0.06 * intensity },
+        { r: 80,  opacity: 0.15 * intensity },
+        { r: 42,  opacity: 0.38 * intensity },
+        { r: 18,  opacity: 0.65 * intensity },
+      ];
+      rings.forEach(({ r, opacity }) => {
+        const c = L.circle([cell.lat, cell.lng], {
+          radius: r,
+          color: "transparent",
+          fillColor: "#dd2200",
+          fillOpacity: opacity,
+          interactive: false,
+          renderer,
+        }).addTo(map);
+        zonesRef.current.push(c);
+      });
+    });
+  }, []);
 
   useEffect(() => {
     if (!divRef.current || mapRef.current) return;
 
     import("leaflet").then((L) => {
       if (!divRef.current || mapRef.current) return;
+      leafletRef.current = L;
       divRef.current.id = idRef.current;
 
       const center: [number, number] = mapCenter ?? (
@@ -88,12 +123,11 @@ export default function MapPreviewInner({
         const altCoords = alternativePolyline ? decodePolyline(alternativePolyline) : [];
 
         if (coords.length > 1) {
-          // Fit to BOTH routes so the user sees the comparison
           const allCoords = altCoords.length > 1 ? [...coords, ...altCoords] : coords;
           const bounds = L.latLngBounds(allCoords);
           map.fitBounds(bounds, { padding: [32, 32] });
 
-          // Fetch and render safety heatmap for the route bounding box
+          // Fetch safety grid and render zones
           const sw = bounds.getSouthWest();
           const ne = bounds.getNorthEast();
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -101,30 +135,20 @@ export default function MapPreviewInner({
             .then((r) => r.json())
             .then(({ cells }: { cells: GridCell[] }) => {
               if (!mapRef.current) return;
-              cells.forEach((cell) => {
-                const style = riskStyle(cell);
-                if (!style) return;
-                L.circle([cell.lat, cell.lng], {
-                  radius: style.radius,
-                  stroke: false,
-                  fillColor: style.color,
-                  fillOpacity: style.opacity,
-                  interactive: false,
-                }).addTo(map);
-              });
+              cellsRef.current = cells;
+              applyZones(L, map, showZonesRef.current);
             })
             .catch(() => {});
         }
 
-        // Less-safe alternative drawn first, dashed red, beneath the safe route
+        // Alternative route — solid orange, drawn beneath safe route
         if (altCoords.length > 1) {
           L.polyline(altCoords, {
-            color: "#ff3322",
+            color: "#FF8800",
             weight: 4,
-            opacity: 0.85,
+            opacity: 0.9,
             lineJoin: "round",
             lineCap: "round",
-            dashArray: "8 6",
           }).addTo(map);
         }
 
@@ -157,8 +181,50 @@ export default function MapPreviewInner({
     return () => {
       mapRef.current?.remove();
       mapRef.current = null;
+      zonesRef.current = [];
     };
   }, []);
 
-  return <div ref={divRef} style={{ width: "100%", height: "100%" }} />;
+  // Toggle zones on/off without remounting the map
+  useEffect(() => {
+    showZonesRef.current = showZones;
+    if (!mapRef.current || !leafletRef.current) return;
+    applyZones(leafletRef.current, mapRef.current, showZones);
+  }, [showZones, applyZones]);
+
+  return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+      <div ref={divRef} style={{ width: "100%", height: "100%" }} />
+      {showRoute && (
+        <button
+          onClick={() => setShowZones(v => !v)}
+          style={{
+            position: "absolute", bottom: 14, right: 12, zIndex: 600,
+            display: "flex", alignItems: "center", gap: "7px",
+            background: showZones ? "rgba(220,34,0,0.88)" : "rgba(10,10,40,0.78)",
+            border: showZones
+              ? "1.5px solid rgba(255,120,80,0.6)"
+              : "1.5px solid rgba(255,255,255,0.18)",
+            borderRadius: "20px", padding: "7px 13px",
+            color: "#fff",
+            fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif",
+            fontWeight: 700, fontSize: "12px", cursor: "pointer",
+            backdropFilter: "blur(6px)",
+            boxShadow: showZones ? "0 0 16px rgba(220,34,0,0.45)" : "0 2px 8px rgba(0,0,0,0.4)",
+            transition: "background 0.2s, box-shadow 0.2s, border-color 0.2s",
+            letterSpacing: "0.02em",
+          }}
+        >
+          <span style={{
+            width: 9, height: 9, borderRadius: "50%",
+            background: showZones ? "#ff9980" : "rgba(255,255,255,0.3)",
+            display: "inline-block", flexShrink: 0,
+            boxShadow: showZones ? "0 0 6px #ff6644" : "none",
+            transition: "background 0.2s",
+          }} />
+          {showZones ? "Safety zones on" : "Show safety zones"}
+        </button>
+      )}
+    </div>
+  );
 }
