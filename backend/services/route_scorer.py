@@ -198,18 +198,22 @@ async def score_route(
 async def select_safest_route(
     routes: list[dict],
     departure_time: datetime,
-) -> tuple[dict, float, list[str]]:
+) -> tuple[dict, float, list[str], list[dict]]:
     """
-    Score all route alternatives and return (best_route, score, hotspots).
+    Score all route alternatives and return (best_route, score, hotspots, scored_alternatives).
 
-    Each route dict must have a 'polyline' key (encoded Google polyline).
+    scored_alternatives contains every route with its safety_score attached, sorted
+    best-first — useful for evaluation and the frontend comparison view.
     """
     results = await asyncio.gather(
         *[score_route(r["polyline"], departure_time) for r in routes]
     )
     best_route, best_score, best_hotspots = routes[0], 0.0, []
+    scored = []
     for route, (score, hotspots) in zip(routes, results):
+        scored.append({**route, "safety_score": score, "hotspots": hotspots})
         if score > best_score:
             best_route, best_score, best_hotspots = route, score, hotspots
 
-    return best_route, best_score, best_hotspots
+    scored.sort(key=lambda r: r["safety_score"], reverse=True)
+    return best_route, best_score, best_hotspots, scored
