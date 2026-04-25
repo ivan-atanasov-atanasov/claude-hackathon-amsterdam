@@ -89,15 +89,20 @@ async def get_routes(
     ]
 
     # Score all route alternatives and select the safest
-    best_route, safety_score, hotspots = await select_safest_route(routes, dt)
+    best_route, safety_score, hotspots, scored_alternatives = await select_safest_route(routes, dt)
 
     # Return route immediately — frontend fetches AI tips separately via /tips
     from services.ai_narrator import _fallback_response
     fallback = _fallback_response(hotspots, dt)
 
+    google_default = routes[0]  # Google's top pick (shortest/fastest)
+    chose_different = best_route["polyline"] != google_default["polyline"]
+
     return {
         "route": best_route,
         "all_routes": routes,
+        "route_alternatives": scored_alternatives,  # all routes with safety scores, best first
+        "chose_safer_than_google": chose_different,
         "safety_score": safety_score,
         "avoids": fallback["avoids"],
         "tips": fallback["tips"],
