@@ -10,14 +10,19 @@ const BD = "#000099";
 function googleMapsUrl(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
-  mode: string
+  mode: string,
+  fromAddress?: string,
+  toAddress?: string,
 ): string {
   const tm = mode === "bicycling" ? "bicycling" : "walking";
-  return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=${tm}`;
+  const o = fromAddress ? encodeURIComponent(fromAddress) : `${origin.lat},${origin.lng}`;
+  const d = toAddress   ? encodeURIComponent(toAddress)   : `${destination.lat},${destination.lng}`;
+  return `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=${tm}`;
 }
 
 function EtaSheet({ onClose, route, toAddress }: { onClose: () => void; route: { duration_text: string; summary: string }; toAddress?: string }) {
   const [copied, setCopied] = useState(false);
+  const [signalCopied, setSignalCopied] = useState(false);
 
   const eta = new Date();
   const durationMin = parseInt(route.duration_text) || 15;
@@ -31,6 +36,14 @@ function EtaSheet({ onClose, route, toAddress }: { onClose: () => void; route: {
     navigator.clipboard.writeText(message).catch(() => {});
     setCopied(true);
     setTimeout(() => setCopied(false), 1800);
+  }
+
+  function handleSignal() {
+    navigator.clipboard.writeText(message).catch(() => {});
+    setSignalCopied(true);
+    setTimeout(() => { setSignalCopied(false); }, 2000);
+    // Signal has no pre-fill URL — copy message then open the app
+    window.location.href = "sgnl://";
   }
 
   return (
@@ -55,9 +68,9 @@ function EtaSheet({ onClose, route, toAddress }: { onClose: () => void; route: {
         </div>
 
         {[
-          { label: "WhatsApp",                   bg: "#25D366", icon: "💬", href: `https://wa.me/?text=${encodeURIComponent(message)}` },
-          { label: "Signal",                     bg: "#2C6BED", icon: "🔒", href: `https://signal.me/#p/${encodeURIComponent(message)}` },
-          { label: copied ? "Copied!" : "Copy message", bg: "rgba(255,255,255,0.1)", icon: "📋", onClick: handleCopy },
+          { label: "WhatsApp",                                     bg: "#25D366",             icon: "💬", href: `https://wa.me/?text=${encodeURIComponent(message)}` },
+          { label: signalCopied ? "Copied — paste in Signal!" : "Signal", bg: "#2C6BED",     icon: "🔒", onClick: handleSignal },
+          { label: copied ? "Copied!" : "Copy message",            bg: "rgba(255,255,255,0.1)", icon: "📋", onClick: handleCopy },
         ].map((btn) => (
           btn.href ? (
             <a key={btn.label} href={btn.href} target="_blank" rel="noopener noreferrer" style={{
@@ -257,7 +270,7 @@ export function RouteResult({ result, fromAddress, toAddress, tipsOverride, tips
             cursor: "pointer", display: "flex", alignItems: "center", gap: "7px", whiteSpace: "nowrap",
           }}>📍 Send ETA</button>
           <a
-            href={googleMapsUrl(route.start_location, route.end_location, mode)}
+            href={googleMapsUrl(route.start_location, route.end_location, mode, fromAddress, toAddress)}
             target="_blank"
             rel="noopener noreferrer"
             style={{
