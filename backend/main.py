@@ -108,6 +108,27 @@ async def get_routes(
     }
 
 
+@app.get("/safety-grid")
+async def get_safety_grid(
+    sw_lat: float = Query(...),
+    sw_lng: float = Query(...),
+    ne_lat: float = Query(...),
+    ne_lng: float = Query(...),
+):
+    """Return safety grid cells within a bounding box for map heatmap overlay."""
+    from services.route_scorer import _get_supabase
+    sb = _get_supabase()
+    result = (
+        sb.table("safety_grid")
+        .select("lat,lng,overview_score,lighting_score,incident_score,hotspot_penalty")
+        .gte("lat", sw_lat).lte("lat", ne_lat)
+        .gte("lng", sw_lng).lte("lng", ne_lng)
+        .limit(500)
+        .execute()
+    )
+    return {"cells": result.data}
+
+
 @app.get("/tips")
 async def get_tips(
     safety_score: float = Query(..., description="Route safety score 0–10"),
