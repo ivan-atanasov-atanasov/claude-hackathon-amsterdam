@@ -130,8 +130,8 @@ export function RouteResult({ result, fromAddress, toAddress, tipsOverride, tips
         </div>
       )}
 
-      {/* Map */}
-      <div style={{ position: "relative", height: "340px", flexShrink: 0 }}>
+      {/* Map — capped at 38% of viewport so the panel always has room on small phones */}
+      <div style={{ position: "relative", height: "min(260px, 38dvh)", flexShrink: 0 }}>
         <MapPreview
           polyline={route.polyline}
           startLocation={route.start_location}
@@ -161,8 +161,8 @@ export function RouteResult({ result, fromAddress, toAddress, tipsOverride, tips
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "56px", background: `linear-gradient(transparent, ${BD})`, pointerEvents: "none", zIndex: 500 }} />
       </div>
 
-      {/* Panel */}
-      <div className="panel-scroll" style={{ flex: 1, padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: "11px", overflowAnchor: "none" }}>
+      {/* Panel — minHeight:0 is required so the flex child can shrink and overflow-y:auto works */}
+      <div className="panel-scroll" style={{ flex: 1, minHeight: 0, padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: "11px", overflowAnchor: "none" }}>
 
         {/* From / To bar */}
         <button onClick={onBack} style={{
