@@ -192,7 +192,7 @@ def build_grid(
         cell_box = box(lng - half, lat - half, lng + half, lat + half)
         pt = Point(lng, lat)
 
-        lighting_score    = lighting.get((grid_x, grid_y), 0.0)
+        lighting_score    = lighting.get((grid_x, grid_y), 0.5)
         incident_density  = incidents.get((grid_x, grid_y), 0.0)
         incident_score    = round(1.0 - incident_density, 4)  # inverted
         building_density_score = bag.get((grid_x, grid_y), 0.5)
@@ -282,11 +282,9 @@ def upsert_grid(records: list[dict], dry_run: bool) -> None:
 # ---------------------------------------------------------------------------
 
 async def run(dry_run: bool) -> None:
-    print("\n[1/5] Fetching lighting + incidents from Amsterdam API (parallel)...")
-    lighting, incidents = await asyncio.gather(
-        fetch_lighting_density(),
-        fetch_incident_density(),
-    )
+    print("\n[1/5] Skipping Amsterdam API (unreachable) — using neutral defaults for lighting + incidents.")
+    lighting: dict = {}   # lighting_score defaults to 0.5 in build_grid
+    incidents: dict = {}  # incident_score defaults to 1.0 (no known incidents)
 
     print("\n[2/5] Loading local data files...")
     bag = load_bag_density()
