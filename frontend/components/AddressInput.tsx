@@ -5,18 +5,13 @@ import { usePlacesAutocomplete } from "@/hooks/usePlacesAutocomplete";
 
 interface Props {
   placeholder?: string;
-  value?: string;
   onSelect: (address: string) => void;
-  prefix?: React.ReactNode;
 }
 
-export function AddressInput({ placeholder, value: externalValue, onSelect, prefix }: Props) {
+export function AddressInput({ placeholder, onSelect }: Props) {
   const { query, setQuery, suggestions, open, select, clear } = usePlacesAutocomplete();
   const [focused, setFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Sync external value override (e.g. "Current location") into the input
-  const displayValue = externalValue !== undefined && !focused ? externalValue : query;
 
   function handleSelect(text: string) {
     select({ text, placeId: "" });
@@ -24,53 +19,46 @@ export function AddressInput({ placeholder, value: externalValue, onSelect, pref
     setFocused(false);
   }
 
-  function handleFocus() {
-    setFocused(true);
-    if (query.length >= 2) {
-      // re-open if there are cached suggestions
-    }
-  }
-
   function handleBlur() {
-    // Delay so mousedown on a suggestion fires first
-    setTimeout(() => {
-      clear();
-      setFocused(false);
-    }, 200);
+    // Long enough delay for mousedown/touchend to fire first
+    setTimeout(() => { clear(); setFocused(false); }, 250);
   }
 
   return (
-    <div ref={containerRef} className="relative w-full flex items-center gap-2">
-      {prefix}
+    <div ref={containerRef} className="relative w-full">
       <input
         type="text"
-        value={focused ? query : (externalValue ?? query)}
+        value={query}
         placeholder={placeholder}
         onChange={(e) => { setQuery(e.target.value); onSelect(""); }}
-        onFocus={handleFocus}
+        onFocus={() => setFocused(true)}
         onBlur={handleBlur}
-        className="stella-input flex-1 py-1 text-sm focus:outline-none min-w-0"
-        style={{ background: "transparent", color: "#ffffff", border: "none" }}
+        className="stella-input w-full py-1 text-sm focus:outline-none"
+        style={{ background: "transparent", color: "#ffffff", border: "none", width: "100%" }}
       />
       {open && suggestions.length > 0 && (
         <ul
-          className="absolute left-0 right-0 top-full z-50 mt-2 rounded-2xl overflow-hidden shadow-2xl"
-          style={{
-            background: "#0D1347",
-            border: "1px solid rgba(255,255,255,0.12)",
-          }}
+          className="absolute left-0 right-0 top-full z-50 mt-2 rounded-xl overflow-hidden shadow-2xl"
+          style={{ background: "#001080", border: "1px solid rgba(255,255,255,0.12)", minWidth: "100%" }}
         >
           {suggestions.map((s) => (
             <li
               key={s.placeId || s.text}
-              // preventDefault stops the input blur from firing before selection
+              // preventDefault stops blur from firing before the selection registers
               onMouseDown={(e) => { e.preventDefault(); handleSelect(s.text); }}
-              className="px-4 py-3 text-sm cursor-pointer flex items-center gap-2"
-              style={{ color: "rgba(255,255,255,0.85)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,229,0,0.08)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              onTouchEnd={(e) => { e.preventDefault(); handleSelect(s.text); }}
+              style={{
+                padding: "12px 15px",
+                fontSize: "14px",
+                color: "rgba(255,255,255,0.85)",
+                cursor: "pointer",
+                borderBottom: "1px solid rgba(255,255,255,0.06)",
+                display: "flex", alignItems: "center", gap: "8px",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,5,0.08)"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
             >
-              <span style={{ color: "var(--stella-yellow)", fontSize: "0.7rem" }}>📍</span>
+              <span style={{ fontSize: "12px", opacity: 0.6 }}>📍</span>
               {s.text}
             </li>
           ))}

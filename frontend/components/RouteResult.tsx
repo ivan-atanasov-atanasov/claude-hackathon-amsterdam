@@ -153,15 +153,6 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
           boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
         }}>{routeLabel}</div>
 
-        {/* Safety score badge */}
-        <div style={{
-          position: "absolute", top: 12, right: 12, zIndex: 600,
-          background: safety_score >= 7 ? "rgba(34,197,94,0.9)" : safety_score >= 5 ? "rgba(245,158,11,0.9)" : "rgba(239,68,68,0.9)",
-          borderRadius: "20px", padding: "7px 12px",
-          color: "#fff", fontWeight: 700, fontSize: "13px",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
-        }}>{safety_score.toFixed(1)}/10</div>
-
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "56px", background: `linear-gradient(transparent, ${BD})`, pointerEvents: "none", zIndex: 500 }} />
       </div>
 
@@ -173,32 +164,39 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
         </div>
 
         {/* Avoidance cards */}
-        {avoids.areas.length > 0 ? avoids.areas.map((area) => {
-          const kindMap: Record<string, string> = {
-            "incident hotspots": "INCIDENTS", "areas without camera coverage": "NO CCTV",
-            "poorly lit streets": "DARK", "isolated paths": "ISOLATED",
-            "areas with frequent incident reports": "INCIDENTS",
-          };
-          const kind = kindMap[area] ?? "AVOIDED";
-          const display = area.charAt(0).toUpperCase() + area.slice(1);
-          return (
-            <div key={area} style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
-              <div style={{ height: "3px", background: Y }} />
-              <div style={{ padding: "13px 15px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
-                <div>
-                  <div style={{ color: Y, fontWeight: 700, fontSize: "20px", marginBottom: "5px" }}>{display}</div>
-                  {avoids.summary && <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.45 }}>{avoids.summary}</div>}
-                </div>
-                <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: "7px", padding: "4px 9px", color: "rgba(255,255,255,0.55)", fontSize: "11px", fontWeight: 700, flexShrink: 0, marginTop: "2px" }}>{kind}</div>
-              </div>
-            </div>
-          );
-        }) : (
+        {avoids.areas.length > 0 ? (
           <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
             <div style={{ height: "3px", background: Y }} />
             <div style={{ padding: "13px 15px" }}>
-              <div style={{ color: Y, fontWeight: 700, fontSize: "20px", marginBottom: "5px" }}>Safest available route</div>
-              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.45 }}>{avoids.summary || "No specific hazards on this route."}</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: avoids.summary ? "10px" : 0 }}>
+                {avoids.areas.map((area) => {
+                  const kindMap: Record<string, string> = {
+                    "incident hotspots": "INCIDENTS", "areas without camera coverage": "NO CCTV",
+                    "poorly lit streets": "DARK", "isolated paths": "ISOLATED",
+                    "areas with frequent incident reports": "INCIDENTS",
+                  };
+                  const kind = kindMap[area] ?? "AVOIDED";
+                  return (
+                    <div key={area} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ color: Y, fontWeight: 700, fontSize: "17px" }}>
+                        {area.charAt(0).toUpperCase() + area.slice(1)}
+                      </span>
+                      <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "6px", padding: "2px 7px", color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: 700 }}>{kind}</span>
+                    </div>
+                  );
+                })}
+              </div>
+              {avoids.summary && (
+                <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoids.summary}</div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ height: "3px", background: Y }} />
+            <div style={{ padding: "13px 15px" }}>
+              <div style={{ color: Y, fontWeight: 700, fontSize: "17px", marginBottom: "5px" }}>Safest available route</div>
+              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoids.summary || "No specific hazards identified on this route."}</div>
             </div>
           </div>
         )}
@@ -232,20 +230,26 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
             color: "#fff", fontFamily: "inherit", fontWeight: 700, fontSize: "14px",
             cursor: "pointer", display: "flex", alignItems: "center", gap: "7px", whiteSpace: "nowrap",
           }}>📍 Send ETA</button>
-          <button onClick={onArrived} style={{
-            flex: 1, padding: "14px", borderRadius: "12px",
-            background: Y, border: "none",
-            color: "#000", fontFamily: "inherit", fontWeight: 700, fontSize: "14px",
-            cursor: "pointer", whiteSpace: "nowrap",
-          }}>Open in Google Maps →</button>
+          <a
+            href={googleMapsUrl(route.start_location, route.end_location, mode)}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              flex: 1, padding: "14px", borderRadius: "12px",
+              background: Y, border: "none",
+              color: "#000", fontFamily: "inherit", fontWeight: 700, fontSize: "14px",
+              cursor: "pointer", whiteSpace: "nowrap", textAlign: "center",
+              textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center",
+            }}
+          >Open in Google Maps →</a>
         </div>
 
-        {/* Hidden real Google Maps link */}
-        <a
-          href={googleMapsUrl(route.start_location, route.end_location, mode)}
-          id="gmaps-link" target="_blank" rel="noopener noreferrer"
-          style={{ display: "none" }}
-        />
+        {/* Arrived check-in */}
+        <button onClick={onArrived} style={{
+          width: "100%", padding: "12px", borderRadius: "11px",
+          background: "transparent", border: "1px solid rgba(255,255,255,0.15)",
+          color: "rgba(255,255,255,0.45)", fontFamily: "inherit", fontSize: "14px", cursor: "pointer",
+        }}>✦ I've arrived — check in</button>
       </div>
 
       {/* ETA bottom sheet */}
