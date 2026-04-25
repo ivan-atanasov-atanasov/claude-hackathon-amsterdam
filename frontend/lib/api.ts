@@ -53,3 +53,20 @@ export async function fetchRoute(
     `/routes?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&mode=${mode}&departure_time=${encodeURIComponent(departure_time)}`
   );
 }
+
+export interface TipsResponse {
+  avoids: RouteAvoids;
+  tips: string[];
+  ai_status: "ok" | "fallback";
+}
+
+export async function fetchTips(
+  safety_score: number,
+  hotspots: string[],
+  departure_time: string,
+  mode: string
+): Promise<TipsResponse> {
+  return apiFetch<TipsResponse>(
+    `/tips?safety_score=${safety_score}&hotspots=${encodeURIComponent(hotspots.join(","))}&departure_time=${encodeURIComponent(departure_time)}&mode=${mode}`
+  );
+}
