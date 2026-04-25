@@ -1,8 +1,13 @@
 import os
+from datetime import datetime, timezone
+
 import httpx
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
+
+from services.route_scorer import select_safest_route
+from services.ai_narrator import generate_route_narrative
 
 load_dotenv()
 
@@ -35,9 +40,20 @@ async def get_routes(
     origin: str = Query(..., description="Start address or lat,lng"),
     destination: str = Query(..., description="End address or lat,lng"),
     mode: str = Query("bicycling", description="Travel mode: bicycling or walking"),
+    departure_time: str = Query(None, description="ISO 8601 departure time; defaults to now"),
 ):
     if not DIRECTIONS_API_KEY:
         raise HTTPException(status_code=500, detail="GOOGLE_DIRECTIONS_API_KEY not configured")
+
+    if departure_time:
+        try:
+            dt = datetime.fromisoformat(departure_time)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid departure_time format; use ISO 8601")
+    else:
+        dt = datetime.now(timezone.utc)
 
     async with httpx.AsyncClient() as client:
         resp = await client.get(
@@ -72,4 +88,57 @@ async def get_routes(
         for r in data["routes"]
     ]
 
-    return {"routes": routes, "mode": mode}
+    # Score all route alternatives and select the safest
+    best_route, safety_score, hotspots = await select_safest_route(routes, dt)
+
+    # Generate AI avoidance summary and tips
+    narrative = await generate_route_narrative(
+        hotspots_passed=hotspots,
+        route_score=safety_score,
+        departure_time=dt,
+        mode=mode,
+    )
+
+    return {
+        "route": best_route,
+        "all_routes": routes,
+        "safety_score": safety_score,
+        "avoids": narrative["avoids"],
+        "tips": narrative["tips"],
+        "ai_status": narrative["ai_status"],
+        "mode": mode,
+        "departure_time": dt.isoformat(),
+    }
+
+
+@app.get("/tips")
+async def get_tips(
+    safety_score: float = Query(..., description="Route safety score 0–10"),
+    hotspots: str = Query("", description="Comma-separated hotspot kinds"),
+    departure_time: str = Query(None, description="ISO 8601 departure time; defaults to now"),
+    mode: str = Query("bicycling"),
+):
+    """Regenerate safety tips for a route (e.g. after time-of-day change)."""
+    if departure_time:
+        try:
+            dt = datetime.fromisoformat(departure_time)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid departure_time format")
+    else:
+        dt = datetime.now(timezone.utc)
+
+    hotspot_list = [h.strip() for h in hotspots.split(",") if h.strip()]
+    narrative = await generate_route_narrative(
+        hotspots_passed=hotspot_list,
+        route_score=safety_score,
+        departure_time=dt,
+        mode=mode,
+    )
+
+    return {
+        "avoids": narrative["avoids"],
+        "tips": narrative["tips"],
+        "ai_status": narrative["ai_status"],
+    }
