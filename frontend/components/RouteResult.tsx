@@ -1,7 +1,7 @@
 "use client";
 
 import { MapPreview } from "@/components/MapPreview";
-import type { RouteResponse } from "@/lib/api";
+import type { RouteAvoids, RouteResponse } from "@/lib/api";
 
 function ScoreBadge({ score }: { score: number }) {
   const color =
@@ -36,10 +36,16 @@ function googleMapsUrl(
 
 interface Props {
   result: RouteResponse;
+  tipsOverride?: { avoids: RouteAvoids; tips: string[]; ai_status: "ok" | "fallback" } | null;
+  tipsLoading?: boolean;
 }
 
-export function RouteResult({ result }: Props) {
-  const { route, safety_score, avoids, tips, ai_status, mode } = result;
+export function RouteResult({ result, tipsOverride, tipsLoading }: Props) {
+  const { route, safety_score, mode } = result;
+
+  const avoids = tipsOverride?.avoids ?? result.avoids;
+  const tips = tipsOverride?.tips ?? result.tips;
+  const ai_status = tipsOverride?.ai_status ?? result.ai_status;
 
   return (
     <div className="flex flex-col gap-5">
@@ -65,7 +71,7 @@ export function RouteResult({ result }: Props) {
 
       {/* Avoidance summary */}
       {avoids.summary && (
-        <div className="rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 flex flex-col gap-2">
+        <div className={`rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 flex flex-col gap-2 transition-opacity ${tipsLoading ? "opacity-50" : ""}`}>
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
             Route avoids
           </p>
@@ -89,9 +95,10 @@ export function RouteResult({ result }: Props) {
 
       {/* Safety tips */}
       {tips.length > 0 && (
-        <div className="flex flex-col gap-2">
+        <div className={`flex flex-col gap-2 transition-opacity ${tipsLoading ? "opacity-50" : ""}`}>
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
             Safety tips{ai_status === "fallback" && " (general)"}
+            {tipsLoading && <span className="ml-2 normal-case font-normal text-zinc-400">updating…</span>}
           </p>
           <ul className="flex flex-col gap-2">
             {tips.map((tip, i) => (
