@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 from services.route_scorer import select_safest_route
 from services.ai_narrator import generate_route_narrative
+from services.unsafe_area_detector import detect_passed_areas, diff_avoidances
 
 load_dotenv()
 
@@ -91,22 +92,27 @@ async def get_routes(
     # Score all route alternatives and select the safest
     best_route, safety_score, hotspots, scored_alternatives = await select_safest_route(routes, dt)
 
-    # Return route immediately — frontend fetches AI tips separately via /tips
-    from services.ai_narrator import _fallback_response
-    fallback = _fallback_response(hotspots, dt)
-
     google_default = routes[0]  # Google's top pick (shortest/fastest)
     chose_different = best_route["polyline"] != google_default["polyline"]
 
+    # Detect named unsafe areas on both routes and compute the avoidance diff
+    safe_passed = detect_passed_areas(best_route["polyline"])
+    alt_passed = detect_passed_areas(google_default["polyline"]) if chose_different else {"named": [], "pointer_count": 0}
+    avoidance_diff = diff_avoidances(safe_passed, alt_passed)
+
     return {
         "route": best_route,
+        "alternative_route": google_default if chose_different else None,
+        "alternative_safety_score": next(
+            (r["safety_score"] for r in scored_alternatives if r["polyline"] == google_default["polyline"]),
+            None,
+        ) if chose_different else None,
         "all_routes": routes,
-        "route_alternatives": scored_alternatives,  # all routes with safety scores, best first
+        "route_alternatives": scored_alternatives,
         "chose_safer_than_google": chose_different,
         "safety_score": safety_score,
-        "avoids": fallback["avoids"],
-        "tips": fallback["tips"],
-        "ai_status": "pending",
+        "avoidance_diff": avoidance_diff,
+        "passed_areas": safe_passed,
         "hotspots": hotspots,
         "mode": mode,
         "departure_time": dt.isoformat(),

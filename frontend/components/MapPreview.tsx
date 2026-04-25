@@ -6,6 +6,7 @@ const MapPreviewInner = dynamic(() => import("./MapPreviewInner"), { ssr: false 
 
 interface Props {
   polyline?: string;
+  alternativePolyline?: string;
   startLocation?: { lat: number; lng: number };
   endLocation?: { lat: number; lng: number };
   showRoute?: boolean;
