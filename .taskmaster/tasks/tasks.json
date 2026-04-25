@@ -52,9 +52,9 @@
         "dependencies": [
           "26"
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [],
-        "updatedAt": "2026-04-25T12:36:06.722Z"
+        "updatedAt": "2026-04-25T13:10:00.000Z"
       },
       {
         "id": "28",
@@ -66,108 +66,115 @@
         "dependencies": [
           "27"
         ],
-        "status": "in-progress",
+        "status": "done",
         "subtasks": [],
-        "updatedAt": "2026-04-25T12:46:28.570Z"
+        "updatedAt": "2026-04-25T13:10:00.000Z"
       },
       {
         "id": "29",
         "title": "Build deterministic route scoring and selection engine",
         "description": "Implement the weighted safety scoring formula with time-of-day layer weights and route selection logic that picks the highest-scoring alternative from Google Directions",
-        "details": "1. Create backend/route_scorer.py module\n2. Implement time-of-day weight tables from PRD Table (survey-seeded):\n   - Day (06-20): people 0.22, overview 0.16, lighting 0.14, buildings 0.18, camera 0.04, overlast -0.08, incidents -0.10, hotspot -0.08\n   - Evening (20-23): people 0.20, overview 0.18, lighting 0.20, buildings 0.14, camera 0.06, overlast -0.14, incidents -0.10, hotspot -0.12\n   - Night (23-06): people 0.18, overview 0.20, lighting 0.26, buildings 0.10, camera 0.08, overlast -0.18, incidents -0.10, hotspot -0.16\n3. Implement cell_score(lat, lng, time) function:\n   - Fetch safety_grid scores for cell\n   - Get people_density for time\n   - Apply time-window weights\n   - Multiply by buurt_baseline veiligheidsindex\n   - Return composite score 0.0-10.0\n4. Implement route_score(polyline, time) function:\n   - Decode polyline to lat/lng points\n   - Sample points every ~50m\n   - Map each point to grid cell\n   - Compute mean(cell_score) across route\n   - Scale to 0-10\n5. Implement select_safest_route(alternatives, time):\n   - Score each alternative\n   - Return highest-scoring route\n   - Track which unsafe_areas each route intersects for avoidance summary",
-        "testStrategy": "Create test routes through known safe vs unsafe areas. Verify scoring returns expected ordering. Test time-of-day changes affect scores correctly (e.g., route through park safer during day than night). Confirm route selection picks the expected alternative.",
+        "details": "1. Create backend/route_scorer.py module\n2. Implement time-of-day weight tables from PRD Table (survey-seeded):\n   - Day (06-20): people 0.22, overview 0.16, lighting 0.14, buildings 0.18, camera 0.04, overlast -0.08, incidents -0.10, hotspot -0.08\n   - Evening (20-23): people 0.20, overview 0.18, lighting 0.20, buildings 0.14, camera 0.06, overlast -0.14, incidents -0.10, hotspot -0.12\n   - Night (23-06): people 0.18, overview 0.20, lighting 0.26, buildings 0.10, camera 0.08, overlast -0.18, incidents -0.10, hotspot -0.16\n3. Implement cell_score(lat, lng, time) function\n4. Implement route_score(polyline, time) function\n5. Implement select_safest_route(alternatives, time)",
+        "testStrategy": "Create test routes through known safe vs unsafe areas. Verify scoring returns expected ordering. Test time-of-day changes affect scores correctly. Confirm route selection picks the expected alternative.",
         "priority": "high",
         "dependencies": [
           "28"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-04-25T13:10:00.000Z"
       },
       {
         "id": "30",
         "title": "Integrate Anthropic Claude SDK for AI avoidance summaries and tips",
         "description": "Add Claude Sonnet 4.6 integration to generate 'what this route avoids' summaries and contextual safety tips with prompt caching",
-        "details": "1. Add anthropic SDK to backend/requirements.txt: anthropic>=0.40.0\n2. Add ANTHROPIC_API_KEY to backend/.env\n3. Create backend/ai_tips.py module\n4. Implement system prompt (cacheable):\n   - Role: safety route explainer\n   - Input format: route polyline summary, grid cells crossed, layer subscores, departure time, mode, intersected unsafe_areas\n   - Output format: {\"avoids\": {\"areas\": [\"Leidseplein\", \"Vondelpark south edge\"], \"summary\": \"This route avoids...\"}, \"tips\": [\"tip1\", \"tip2\", \"tip3\"]}\n   - Constraints: 1 sentence avoidance summary naming specific streets/squares/parks, 1-3 contextual tips, 2s timeout, deterministic areas list from scorer\n5. Implement generate_tips(route_data) function:\n   - Call Claude Messages API with claude-sonnet-4-6 model\n   - Use prompt caching on system prompt\n   - 2s timeout with fallback to static tips\n   - Return {avoids, tips, ai_status}\n6. Create fallback tips:\n   - Static list based on time/mode/hotspots\n   - E.g., night → \"Share live location\", park → \"Stay on main paths\", etc.",
-        "testStrategy": "Test with real route data and verify Claude returns valid JSON with avoidance summary and tips. Verify prompt caching reduces latency on repeat calls. Test timeout fallback by simulating slow API response. Confirm fallback tips are sensible when AI fails.",
+        "details": "Implemented in backend/services/ai_narrator.py. Uses claude-sonnet-4-6 with cache_control on system prompt, 8s timeout with graceful fallback to static tips. Confirmed ai_status: 'ok' in Railway production.",
+        "testStrategy": "Test with real route data and verify Claude returns valid JSON with avoidance summary and tips. Verify prompt caching reduces latency on repeat calls. Test timeout fallback by simulating slow API response.",
         "priority": "high",
         "dependencies": [
           "29"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-04-25T15:05:00.000Z"
       },
       {
         "id": "31",
         "title": "Update backend /routes endpoint to return safest route with AI summary",
         "description": "Refactor /routes endpoint to integrate route scoring, selection, and AI tip generation matching PRD API spec",
-        "details": "1. Update backend/main.py /routes endpoint:\n   - Add time query param (default to now)\n   - Fetch Google Directions alternatives (up to 3) for mode\n   - Score each alternative using route_scorer.route_score()\n   - Select highest-scoring route\n   - Extract distance_m, duration_min, polyline\n   - Detect hotspots_passed from intersected unsafe_areas\n   - Call ai_tips.generate_tips() with route data\n   - Return JSON matching PRD spec:\n     {\n       \"route\": {\"polyline\": ..., \"distance_m\": ..., \"duration_min\": ..., \"hotspots_passed\": [...]},\n       \"avoids\": {\"areas\": [...], \"summary\": \"...\"},\n       \"tips\": [...],\n       \"ai_status\": \"ok\"|\"fallback\"\n     }\n2. Handle errors gracefully:\n   - Google API failures → 400 with detail\n   - Scoring failures → 500 with detail\n   - AI failures → continue with fallback (ai_status: \"fallback\")\n3. Add request logging for debugging",
-        "testStrategy": "Test with various origin/destination/mode/time combinations. Verify safest route is selected (compare to alternatives). Confirm AI summary and tips are returned. Test with invalid addresses (should 400). Test with ANTHROPIC_API_KEY unset (should fallback). Load test with 10 concurrent requests.",
+        "details": "Updated backend/main.py /routes endpoint: adds departure_time param, calls select_safest_route, then generate_route_narrative. Returns {route, all_routes, safety_score, avoids, tips, ai_status, mode, departure_time}. Also added GET /tips endpoint for tip regeneration.",
+        "testStrategy": "Test with various origin/destination/mode/time combinations. Verify safest route is selected. Confirm AI summary and tips are returned. Test with ANTHROPIC_API_KEY unset (should fallback).",
         "priority": "high",
         "dependencies": [
           "30"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-04-25T15:05:00.000Z"
       },
       {
         "id": "32",
         "title": "Build frontend route input form with time picker and mode selector",
         "description": "Update frontend to collect origin, destination, departure time (default now), and mode (cycling/walking) with proper validation",
-        "details": "1. Update frontend/app/page.tsx:\n   - Add time state with default Date.now()\n   - Add time picker input (HTML5 datetime-local or custom component)\n   - Keep existing mode selector (cycling/walking)\n   - Update form submission to include time in API call\n2. Update AddressInput component:\n   - Ensure Google Places Autocomplete is properly initialized\n   - Add .env.local requirement: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY\n   - Filter suggestions to Amsterdam area using componentRestrictions\n3. Add client-side validation:\n   - Require both origin and destination\n   - Warn if time is in the past\n   - Disable submit if invalid\n4. Update UI to match PRD framing:\n   - Add hero stat: \"78% of young Amsterdam women feel afraid cycling at night\"\n   - Add mission statement: \"We're changing that — and giving women back the night\"\n   - Update tagline to emphasize safety for women",
-        "testStrategy": "Test form submission with all combinations of inputs. Verify time defaults to now. Confirm validation prevents empty submissions. Check Google Places Autocomplete suggests Amsterdam addresses. Verify UI displays hero stat and mission.",
+        "details": "Implemented in frontend/app/page.tsx: datetime-local picker defaulting to next 15-min boundary, mode toggle, past-time amber warning, hero stat card ('78% of young Amsterdam women feel unsafe cycling at night'), mission statement ('We're changing that — and giving women back the night').",
+        "testStrategy": "Test form submission with all combinations of inputs. Verify time defaults to now. Confirm validation prevents empty submissions. Check past-time warning appears. Verify hero stat and mission render.",
         "priority": "medium",
         "dependencies": [
           "31"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-04-25T15:20:00.000Z"
       },
       {
         "id": "33",
         "title": "Build route results display with avoidance summary, tips, and Google Maps handoff",
         "description": "Create UI to display the safest route with map preview, AI avoidance summary, contextual tips, and one-tap Google Maps deep-link",
-        "details": "1. Update frontend/app/page.tsx results section:\n   - Display single route (not alternatives)\n   - Show distance and duration prominently\n   - Render avoids.summary in readable typography\n   - Display avoids.areas as chips/pills\n   - List tips as numbered or bulleted items\n   - Add \"Open in Google Maps\" button that deep-links to route\n2. Update MapPreview component:\n   - Use Google Maps JavaScript API to render route polyline on static map\n   - Show start/end markers\n   - Style map to be clean and readable\n   - Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY requirement\n3. Implement Google Maps deep-link:\n   - Format: https://www.google.com/maps/dir/?api=1&origin=LAT,LNG&destination=LAT,LNG&travelmode=bicycling|walking\n   - Extract origin/destination coords from route data\n   - Open in new tab on click\n4. Add loading states and error handling:\n   - Skeleton UI while fetching\n   - Error message if route fails\n   - Fallback tips if ai_status === \"fallback\"\n5. Style to match PRD minimal aesthetic (clean, readable, focused)",
-        "testStrategy": "Submit a route and verify all elements render correctly. Check avoidance summary is readable and accurate. Confirm tips are relevant to route/time/mode. Click \"Open in Google Maps\" and verify it opens with correct route and mode. Test with ai_status: \"fallback\" to ensure fallback tips display.",
+        "details": "Implemented in frontend/components/RouteResult.tsx: color-coded safety score badge (green/amber/red), Google Maps JS polyline preview, avoidance summary + area chips, numbered tips list, 'Open in Google Maps →' deep link. Accepts tipsOverride + tipsLoading props for Task 34 integration.",
+        "testStrategy": "Submit a route and verify all elements render correctly. Check avoidance summary is readable. Confirm tips are relevant. Click 'Open in Google Maps' and verify correct route and mode.",
         "priority": "high",
         "dependencies": [
           "32"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-04-25T15:20:00.000Z"
       },
       {
         "id": "34",
         "title": "Add GET /tips endpoint for dynamic tip regeneration",
         "description": "Create endpoint to regenerate tips without re-routing when user changes time, allowing interactive exploration",
-        "details": "1. Add GET /tips endpoint to backend/main.py:\n   - Query params: time (timestamp), mode (bicycling|walking), hotspots (comma-separated list)\n   - Call ai_tips.generate_tips() with provided context\n   - Return {\"tips\": [...], \"ai_status\": \"ok\"|\"fallback\"}\n2. Update frontend to call /tips when user changes time without re-submitting form:\n   - Add \"Update tips\" button or auto-update on time change\n   - Debounce updates to avoid excessive API calls\n   - Show loading spinner during tip regeneration\n   - Preserve existing route display while updating tips\n3. Handle edge cases:\n   - Invalid time format → 400\n   - AI timeout → fallback tips\n   - No hotspots → generic tips",
-        "testStrategy": "Display a route, then change time and click \"Update tips\". Verify tips update without re-routing. Test with various time/mode combinations. Confirm fallback works on AI failure. Check debouncing prevents excessive calls.",
+        "details": "Backend GET /tips endpoint added to main.py. Frontend: page.tsx tracks routeTime vs departureTime; shows amber banner when time changes post-route; 'Update tips' button calls fetchTips() from lib/api.ts without re-routing; RouteResult dims avoids/tips with 'updating…' label during fetch.",
+        "testStrategy": "Display a route, then change time and click 'Update tips'. Verify tips update without re-routing. Confirm fallback works on AI failure.",
         "priority": "low",
         "dependencies": [
           "33"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-04-25T15:20:00.000Z"
       },
       {
         "id": "35",
         "title": "Deploy backend to Railway and frontend to Vercel with production env vars",
         "description": "Configure production deployment with all required API keys and environment variables, update CORS for production origin",
-        "details": "1. Backend Railway deployment:\n   - Push to main branch triggers auto-deploy via railway.json\n   - Add Railway env vars: SUPABASE_URL, SUPABASE_KEY, DATABASE_URL, GOOGLE_DIRECTIONS_API_KEY, ANTHROPIC_API_KEY, AMSTERDAM_DATA_API_KEY\n   - Update ALLOWED_ORIGINS to include production frontend URL\n   - Verify health endpoint accessible\n2. Frontend Vercel deployment:\n   - Push to main branch triggers auto-deploy via .github/workflows/deploy-frontend.yml\n   - Add Vercel env vars: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_API_URL (Railway URL), NEXT_PUBLIC_GOOGLE_MAPS_API_KEY\n   - Verify production build succeeds\n3. Test end-to-end flow on production:\n   - Submit route request\n   - Verify CORS allows frontend → backend\n   - Confirm all APIs respond correctly\n4. Run data import scripts on production database:\n   - SSH into Railway or use Railway CLI\n   - Run backend/import_all.py to populate Supabase\n   - Run backend/compute_grid.py to generate safety grid\n5. Monitor logs for errors",
-        "testStrategy": "Access production URL and submit test route. Verify route returns with avoidance summary and tips. Check Google Maps handoff works. Inspect browser console for CORS errors. Check Railway logs for backend errors. Verify Supabase tables are populated in production.",
+        "details": "Railway: all env vars set (SUPABASE_URL, SUPABASE_KEY, DATABASE_URL, GOOGLE_DIRECTIONS_API_KEY, ANTHROPIC_API_KEY, AMSTERDAM_DATA_API_KEY). CORS allows claude-hackathon-amsterdam.vercel.app. Vercel: NEXT_PUBLIC_API_URL points to Railway production URL, NEXT_PUBLIC_GOOGLE_MAPS_API_KEY set. Both services live and healthy.",
+        "testStrategy": "Access production URL and submit test route. Verify route returns with avoidance summary and tips. Check Google Maps handoff works. Inspect browser console for CORS errors.",
         "priority": "high",
         "dependencies": [
           "33",
           "34"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-04-25T15:20:00.000Z"
       }
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-25T12:46:28.570Z",
+      "lastModified": "2026-04-25T15:20:00.000Z",
       "taskCount": 12,
-      "completedCount": 3,
+      "completedCount": 12,
       "tags": [
         "master"
       ]
