@@ -14,6 +14,7 @@ export function usePlacesAutocomplete() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const justSelectedRef = useRef(false);
 
   const fetchSuggestions = useCallback(async (input: string) => {
     const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
@@ -41,11 +42,15 @@ export function usePlacesAutocomplete() {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(query), 250);
+    debounceRef.current = setTimeout(() => {
+      if (justSelectedRef.current) { justSelectedRef.current = false; return; }
+      fetchSuggestions(query);
+    }, 250);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query, fetchSuggestions]);
 
   function select(suggestion: Suggestion) {
+    justSelectedRef.current = true;
     setQuery(suggestion.text);
     setSuggestions([]);
     setOpen(false);

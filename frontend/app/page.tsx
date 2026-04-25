@@ -127,6 +127,7 @@ export default function Home() {
     return (
       <RouteResult
         result={result}
+        toAddress={to}
         tipsOverride={tipsOverride}
         tipsLoading={tipsLoading}
         timeChanged={timeChanged}
@@ -156,7 +157,7 @@ export default function Home() {
           position: "absolute", top: 18, left: 18, zIndex: 500,
           background: Y, borderRadius: "22px",
           padding: "6px 15px 7px",
-          fontWeight: 700, fontSize: "19px", color: "#000",
+          fontWeight: 700, fontSize: "19px", color: "#000099",
           letterSpacing: "-0.3px", lineHeight: 1,
         }}>stella.</div>
       </div>
