@@ -41,7 +41,7 @@ export function PostRouteCheckin({ result, onBack, onReset }: Props) {
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: BD, fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif" }}>
 
       {/* Map */}
-      <div style={{ position: "relative", height: "320px", flexShrink: 0 }}>
+      <div style={{ position: "relative", height: "min(240px, 35dvh)", flexShrink: 0 }}>
         <MapPreview
           polyline={route.polyline}
           startLocation={route.start_location}
@@ -59,7 +59,7 @@ export function PostRouteCheckin({ result, onBack, onReset }: Props) {
       </div>
 
       {/* Panel */}
-      <div className="panel-scroll" style={{ flex: 1, padding: "14px 18px 28px", display: "flex", flexDirection: "column", gap: "13px" }}>
+      <div className="panel-scroll" style={{ flex: 1, minHeight: 0, padding: "14px 18px 28px", display: "flex", flexDirection: "column", gap: "13px" }}>
 
         {/* Arrival banner */}
         <div style={{ background: Y, borderRadius: "14px", padding: "14px 18px", display: "flex", alignItems: "center", gap: "13px" }}>
