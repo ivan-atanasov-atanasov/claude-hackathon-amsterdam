@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { fetchRoute, fetchTips } from "@/lib/api";
 import type { RouteResponse, TipsResponse } from "@/lib/api";
 import { AddressInput } from "@/components/AddressInput";
@@ -63,8 +63,16 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [tipsLoading, setTipsLoading] = useState(false);
   const [locating, setLocating] = useState(false);
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   const timeChanged = result !== null && departureTime !== routeTime;
+
+  // Auto-open the native date picker as soon as the row appears
+  useEffect(() => {
+    if (showTimePicker) {
+      setTimeout(() => dateInputRef.current?.showPicker?.(), 50);
+    }
+  }, [showTimePicker]);
 
   const handleUseLocation = useCallback(async () => {
     if (!navigator.geolocation) { setError("Geolocation not supported."); return; }
@@ -241,6 +249,7 @@ export default function Home() {
               </button>
             </div>
             <input
+              ref={dateInputRef}
               type="datetime-local"
               value={departureTime}
               onChange={(e) => { setDepartureTime(e.target.value); setUseNow(false); }}

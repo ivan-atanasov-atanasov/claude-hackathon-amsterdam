@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 
-// Simple Google encoded-polyline decoder
 function decodePolyline(encoded: string): [number, number][] {
   const points: [number, number][] = [];
   let index = 0, lat = 0, lng = 0;
@@ -18,6 +17,15 @@ function decodePolyline(encoded: string): [number, number][] {
   }
   return points;
 }
+
+function scoreToColor(score: number, hotspotPenalty: number): string {
+  if (hotspotPenalty > 0) return "#ff2222";   // known hotspot — always red
+  if (score >= 0.72) return "#22c55e";         // safe — green
+  if (score >= 0.50) return "#facc15";         // moderate — yellow
+  return "#ef4444";                            // risky — red
+}
+
+interface GridCell { lat: number; lng: number; overview_score: number; hotspot_penalty: number; }
 
 interface Props {
   polyline?: string;
@@ -66,7 +74,6 @@ export default function MapPreviewInner({
       });
       mapRef.current = map;
 
-      // CartoDB Voyager — clean, modern, colorful (matches design)
       L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
         maxZoom: 19,
         subdomains: "abcd",
@@ -74,6 +81,31 @@ export default function MapPreviewInner({
 
       if (showRoute && polyline) {
         const coords = decodePolyline(polyline);
+
+        if (coords.length > 1) {
+          const bounds = L.latLngBounds(coords);
+          map.fitBounds(bounds, { padding: [32, 32] });
+
+          // Fetch and render safety heatmap for the route bounding box
+          const sw = bounds.getSouthWest();
+          const ne = bounds.getNorthEast();
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          fetch(`${apiUrl}/safety-grid?sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`)
+            .then((r) => r.json())
+            .then(({ cells }: { cells: GridCell[] }) => {
+              if (!mapRef.current) return;
+              cells.forEach((cell) => {
+                L.circle([cell.lat, cell.lng], {
+                  radius: 60,
+                  color: "transparent",
+                  fillColor: scoreToColor(cell.overview_score, cell.hotspot_penalty),
+                  fillOpacity: 0.28,
+                  interactive: false,
+                }).addTo(map);
+              });
+            })
+            .catch(() => {});
+        }
 
         L.polyline(coords, {
           color: "#3B5BDB",
@@ -98,11 +130,6 @@ export default function MapPreviewInner({
 
         if (startLocation) L.marker([startLocation.lat, startLocation.lng], { icon: startIcon }).addTo(map);
         if (endLocation) L.marker([endLocation.lat, endLocation.lng], { icon: endIcon }).addTo(map);
-
-        if (coords.length > 1) {
-          const bounds = L.latLngBounds(coords);
-          map.fitBounds(bounds, { padding: [32, 32] });
-        }
       }
     });
 
