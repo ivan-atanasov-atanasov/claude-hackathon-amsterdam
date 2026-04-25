@@ -42,6 +42,12 @@ export default function Home() {
       const data = await fetchRoute(from, to, mode, iso);
       setResult(data);
       setRouteTime(departureTime);
+      // Auto-fetch AI tips in the background without blocking route display
+      setTipsLoading(true);
+      fetchTips(data.safety_score, data.hotspots, iso, mode)
+        .then((tips) => { setTipsOverride(tips); setRouteTime(departureTime); })
+        .catch(() => { /* keep fallback tips on failure */ })
+        .finally(() => setTipsLoading(false));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
