@@ -122,30 +122,12 @@ const KIND_LABEL: Record<string, string> = {
 export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived }: Props) {
   const [etaOpen, setEtaOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const { route, mode, alternative_route, alternative_safety_score, safety_score, avoidance_diff, chose_safer_than_google } = result;
+  const { route, mode, avoidance_diff } = result;
 
   const routeLabel = route.duration_text;
 
-  // Build a deduplicated list of specific reasons from the avoidance diff.
-  // avoided_named is what the alternative passes through but Stella's route doesn't.
   const avoidedNamed = avoidance_diff?.avoided_named ?? [];
   const avoidedPointerCount = avoidance_diff?.avoided_pointer_count ?? 0;
-
-  // Time/distance trade-off vs the alternative
-  let comparison: { extraSec: number; extraM: number; scoreGain: number } | null = null;
-  if (chose_safer_than_google && alternative_route) {
-    comparison = {
-      extraSec: route.duration_s - alternative_route.duration_s,
-      extraM: route.distance_m - alternative_route.distance_m,
-      scoreGain: alternative_safety_score != null ? safety_score - alternative_safety_score : 0,
-    };
-  }
-
-  function fmtMin(seconds: number): string {
-    const m = Math.round(Math.abs(seconds) / 60);
-    if (m === 0) return "<1 min";
-    return `${m} min`;
-  }
 
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: BD, position: "relative", overflow: "hidden", fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif" }}>
@@ -154,7 +136,6 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
       <div style={{ position: "relative", height: "min(260px, 38dvh)", flexShrink: 0 }}>
         <MapPreview
           polyline={route.polyline}
-          alternativePolyline={alternative_route?.polyline}
           startLocation={route.start_location}
           endLocation={route.end_location}
           showRoute
@@ -209,24 +190,6 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
           <span style={{ color: Y, fontSize: "12px", fontWeight: 700, flexShrink: 0 }}>Edit ✎</span>
         </button>
 
-        {/* Comparison summary: how does Stella's route differ from Google's default? */}
-        {comparison && (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,5,0.08)", border: "1px solid rgba(255,255,5,0.22)", borderRadius: "12px", padding: "10px 13px" }}>
-            <div style={{ width: 14, height: 4, background: "#3B5BDB", borderRadius: 2, flexShrink: 0 }} />
-            <span style={{ color: "#fff", fontSize: "13px", fontWeight: 600, flex: 1, lineHeight: 1.35 }}>
-              {comparison.extraSec > 30
-                ? <>+{fmtMin(comparison.extraSec)} longer than the fastest route — but safer.</>
-                : comparison.extraSec < -30
-                  ? <>{fmtMin(comparison.extraSec)} faster <span style={{ color: "rgba(255,255,255,0.7)" }}>and</span> safer.</>
-                  : <>Same time as the fastest route — and safer.</>
-              }
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
-              <div style={{ width: 14, height: 0, borderTop: "2px dashed #ff3322" }} />
-              <span style={{ color: "rgba(255,255,255,0.55)", fontSize: "11px" }}>fastest</span>
-            </div>
-          </div>
-        )}
 
         <div style={{ color: "rgba(255,255,255,0.38)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.13em", textTransform: "uppercase" }}>
           About Stella
