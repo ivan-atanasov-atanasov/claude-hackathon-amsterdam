@@ -27,6 +27,26 @@ function cellIntensity(cell: GridCell): number | null {
   return null;
 }
 
+// Great-circle distance in metres (fast approximation for short distances)
+function distM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Only keep cells within THRESHOLD metres of any sampled route vertex
+function filterNearRoute(cells: GridCell[], route: [number, number][], thresholdM = 500): GridCell[] {
+  // Subsample route to at most every 5th point for speed
+  const sample = route.filter((_, i) => i % 5 === 0);
+  if (sample.length === 0) return cells;
+  return cells.filter(cell =>
+    sample.some(([lat, lng]) => distM(cell.lat, cell.lng, lat, lng) < thresholdM)
+  );
+}
+
 interface Props {
   polyline?: string;
   alternativePolyline?: string;
@@ -56,6 +76,7 @@ export default function MapPreviewInner({
   const idRef = useRef(`_stella_map_${++counter}`);
   const zonesRef = useRef<LeafletCircle[]>([]);
   const cellsRef = useRef<GridCell[]>([]);
+  const routeCoordsRef = useRef<[number, number][]>([]);
   const leafletRef = useRef<LeafletType | null>(null);
   const [showZones, setShowZones] = useState(true);
   const showZonesRef = useRef(true);
@@ -64,7 +85,8 @@ export default function MapPreviewInner({
     zonesRef.current.forEach(c => c.remove());
     zonesRef.current = [];
     if (!on) return;
-    cellsRef.current.forEach((cell) => {
+    const nearby = filterNearRoute(cellsRef.current, routeCoordsRef.current);
+    nearby.forEach((cell) => {
       const intensity = cellIntensity(cell);
       if (!intensity) return;
       const rings = [
@@ -76,7 +98,7 @@ export default function MapPreviewInner({
       rings.forEach(({ r, opacity }) => {
         const c = L.circle([cell.lat, cell.lng], {
           radius: r,
-          color: "transparent",
+          stroke: false,
           fillColor: "#dd2200",
           fillOpacity: opacity,
           interactive: false,
@@ -118,12 +140,13 @@ export default function MapPreviewInner({
 
       if (showRoute && polyline) {
         const coords = decodePolyline(polyline);
+        routeCoordsRef.current = coords;
 
         if (coords.length > 1) {
           const bounds = L.latLngBounds(coords);
           map.fitBounds(bounds, { padding: [32, 32] });
 
-          // Fetch safety grid and render zones
+          // Fetch safety grid and render zones clipped to route proximity
           const sw = bounds.getSouthWest();
           const ne = bounds.getNorthEast();
           const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
