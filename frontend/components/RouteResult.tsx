@@ -16,7 +16,7 @@ function googleMapsUrl(
   return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=${tm}`;
 }
 
-function EtaSheet({ onClose, route }: { onClose: () => void; route: { duration_text: string; summary: string } }) {
+function EtaSheet({ onClose, route, toAddress }: { onClose: () => void; route: { duration_text: string; summary: string }; toAddress?: string }) {
   const [copied, setCopied] = useState(false);
 
   const eta = new Date();
@@ -24,7 +24,8 @@ function EtaSheet({ onClose, route }: { onClose: () => void; route: { duration_t
   eta.setMinutes(eta.getMinutes() + durationMin);
   const etaStr = eta.toLocaleTimeString("en-NL", { hour: "2-digit", minute: "2-digit", hour12: true });
 
-  const message = `stella. I'm on my way home ✦\nETA: ${etaStr} — ${route.duration_text} from now.\nRoute: ${route.summary || "safest path"}.`;
+  const destination = toAddress || route.summary || "home";
+  const message = `stella. I'm on my way to ${destination} ✦\nETA: ${etaStr} — ${route.duration_text} from now.\nRoute: ${route.summary || "safest path"}.`;
 
   function handleCopy() {
     navigator.clipboard.writeText(message).catch(() => {});
@@ -47,7 +48,7 @@ function EtaSheet({ onClose, route }: { onClose: () => void; route: { duration_t
         {/* Message preview */}
         <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: "13px", padding: "14px 15px", marginBottom: "16px", border: "1px solid rgba(255,255,255,0.1)", lineHeight: 1.65, fontSize: "15px" }}>
           <span style={{ color: Y, fontWeight: 700 }}>stella.</span>
-          <span style={{ color: "#fff" }}> I'm on my way home ✦</span><br />
+          <span style={{ color: "#fff" }}> I'm on my way to {destination} ✦</span><br />
           <span style={{ color: "#fff", fontWeight: 700 }}>ETA: {etaStr}</span>
           <span style={{ color: "#fff" }}> — {route.duration_text} from now.</span><br />
           <span style={{ color: "rgba(255,255,255,0.65)", fontSize: "14px" }}>Route: {route.summary || "safest path"}.</span>
@@ -55,7 +56,6 @@ function EtaSheet({ onClose, route }: { onClose: () => void; route: { duration_t
 
         {[
           { label: "WhatsApp",                   bg: "#25D366", icon: "💬", href: `https://wa.me/?text=${encodeURIComponent(message)}` },
-          { label: "Messages",                   bg: "#34C759", icon: "✉️", href: `sms:?body=${encodeURIComponent(message)}` },
           { label: "Signal",                     bg: "#2C6BED", icon: "🔒", href: `https://signal.me/#p/${encodeURIComponent(message)}` },
           { label: copied ? "Copied!" : "Copy message", bg: "rgba(255,255,255,0.1)", icon: "📋", onClick: handleCopy },
         ].map((btn) => (
@@ -93,6 +93,7 @@ function EtaSheet({ onClose, route }: { onClose: () => void; route: { duration_t
 
 interface Props {
   result: RouteResponse;
+  toAddress?: string;
   tipsOverride?: { avoids: RouteAvoids; tips: string[]; ai_status: "ok" | "fallback" } | null;
   tipsLoading?: boolean;
   timeChanged?: boolean;
@@ -101,7 +102,7 @@ interface Props {
   onArrived: () => void;
 }
 
-export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, onUpdateTips, onBack, onArrived }: Props) {
+export function RouteResult({ result, toAddress, tipsOverride, tipsLoading, timeChanged, onUpdateTips, onBack, onArrived }: Props) {
   const [etaOpen, setEtaOpen] = useState(false);
   const { route, safety_score, mode } = result;
 
@@ -112,7 +113,7 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
   const tips         = tipsOverride?.tips ?? result.tips;
   const ai_status    = tipsOverride?.ai_status ?? result.ai_status;
 
-  const routeLabel = `${route.summary || "Amsterdam"} · ${route.duration_text}`;
+  const routeLabel = route.duration_text;
 
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: BD, position: "relative", overflow: "hidden", fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif" }}>
@@ -160,7 +161,7 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
       </div>
 
       {/* Panel */}
-      <div className="panel-scroll" style={{ flex: 1, padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: "11px" }}>
+      <div className="panel-scroll" style={{ flex: 1, padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: "11px", overflowAnchor: "none" }}>
 
         <div style={{ color: "rgba(255,255,255,0.38)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.13em", textTransform: "uppercase" }}>
           Route avoids
@@ -219,14 +220,11 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
             <p style={{ color: "rgba(255,255,255,0.82)", fontSize: "14px", lineHeight: 1.55 }}>
               {tips[0]}
             </p>
-            {tips.slice(1).map((tip, i) => (
-              <p key={i} style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", lineHeight: 1.5, marginTop: "8px" }}>{tip}</p>
-            ))}
           </div>
         )}
 
         {/* Action buttons */}
-        <div style={{ display: "flex", gap: "10px", marginTop: "auto", paddingTop: "6px" }}>
+        <div style={{ display: "flex", gap: "10px", paddingTop: "6px" }}>
           <button onClick={() => setEtaOpen(true)} style={{
             flex: "0 0 auto", padding: "14px 16px", borderRadius: "12px",
             background: "transparent", border: "1.5px solid rgba(255,255,255,0.3)",
@@ -256,7 +254,7 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
       </div>
 
       {/* ETA bottom sheet */}
-      {etaOpen && <EtaSheet onClose={() => setEtaOpen(false)} route={route} />}
+      {etaOpen && <EtaSheet onClose={() => setEtaOpen(false)} route={route} toAddress={toAddress} />}
     </div>
   );
 }

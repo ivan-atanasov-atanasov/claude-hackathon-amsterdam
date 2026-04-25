@@ -83,16 +83,21 @@ export default function MapPreviewInner({
           lineCap: "round",
         }).addTo(map);
 
-        const mkIcon = () =>
-          L.divIcon({
-            className: "",
-            html: '<div class="route-marker"></div>',
-            iconSize: [16, 16],
-            iconAnchor: [8, 8],
-          });
+        const startIcon = L.divIcon({
+          className: "",
+          html: '<div style="width:14px;height:14px;background:#ffff05;border:2.5px solid #000099;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.4)"></div>',
+          iconSize: [14, 14],
+          iconAnchor: [7, 7],
+        });
+        const endIcon = L.divIcon({
+          className: "",
+          html: '<div style="width:18px;height:18px;background:#000099;border:3px solid #ffff05;border-radius:50%;box-shadow:0 1px 6px rgba(0,0,0,0.5)"></div>',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+        });
 
-        if (startLocation) L.marker([startLocation.lat, startLocation.lng], { icon: mkIcon() }).addTo(map);
-        if (endLocation) L.marker([endLocation.lat, endLocation.lng], { icon: mkIcon() }).addTo(map);
+        if (startLocation) L.marker([startLocation.lat, startLocation.lng], { icon: startIcon }).addTo(map);
+        if (endLocation) L.marker([endLocation.lat, endLocation.lng], { icon: endIcon }).addTo(map);
 
         if (coords.length > 1) {
           const bounds = L.latLngBounds(coords);
