@@ -11,10 +11,13 @@ Output schema:
 """
 
 import asyncio
+import logging
 import os
 from datetime import datetime
 
 import anthropic
+
+logger = logging.getLogger(__name__)
 
 _SYSTEM_PROMPT = """You are Stella, a women's safety cycling assistant for Amsterdam.
 Your job is to explain — in plain, reassuring language — what a recommended cycling route avoids and provide actionable safety tips.
@@ -131,7 +134,7 @@ async def generate_route_narrative(
                 ],
                 messages=[{"role": "user", "content": user_prompt}],
             ),
-            timeout=2.0,
+            timeout=8.0,
         )
 
         import json
@@ -149,7 +152,8 @@ async def generate_route_narrative(
             "ai_status": "ok",
         }
 
-    except Exception:
+    except Exception as exc:
+        logger.warning("AI narrator failed (%s: %s); using fallback", type(exc).__name__, exc)
         return _fallback_response(hotspots_passed, departure_time)
 
 
