@@ -2,166 +2,171 @@
   "master": {
     "tasks": [
       {
-        "id": 24,
+        "id": "24",
         "title": "Set up Supabase database schema with PostGIS extension",
         "description": "Create all required database tables (lighting_points, incidents, overlast_zones, unsafe_areas, buurt_baseline, safety_grid) with PostGIS geometry support",
         "details": "1. Enable PostGIS extension in Supabase\n2. Create tables matching PRD schema:\n   - lighting_points: id (uuid), lat (float), lng (float), type (text), imported_at (timestamp)\n   - incidents: id (uuid), lat (float), lng (float), category (text), occurred_at (timestamp), imported_at (timestamp)\n   - overlast_zones: id (uuid), kind (text), geometry (jsonb), validity_days (text[]), validity_hours (text), polarity (text)\n   - unsafe_areas: id (uuid), name (text), kind (text), source (text), geometry (jsonb)\n   - buurt_baseline: buurt_code (text, PK), veiligheidsindex (float), updated_at (timestamp)\n   - safety_grid: id (uuid), grid_x (int), grid_y (int), lat (float), lng (float), buurt_code (text), lighting_score (float), incident_score (float), building_density_score (float), overview_score (float), camera_bonus (float), overlast_penalty (float), hotspot_penalty (float), updated_at (timestamp)\n3. Add indexes on lat/lng columns and grid_x/grid_y for query performance\n4. Create Supabase migration file using `supabase migration new initial_schema`",
         "testStrategy": "Verify all tables exist with correct schema using Supabase dashboard or psql. Run test INSERT/SELECT queries. Confirm PostGIS extension is enabled by running SELECT PostGIS_Version().",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
-        "subtasks": []
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-04-25T10:52:09.006Z"
       },
       {
-        "id": 25,
+        "id": "25",
         "title": "Create data import pipeline for Amsterdam Data API layers",
         "description": "Build Python ETL scripts to fetch and import street lighting, incidents, overlast zones, BAG building data, and neighborhood boundaries from Amsterdam Data API into Supabase",
         "details": "1. Get Amsterdam Data API key from https://keys.api.data.amsterdam.nl/clients/v1/ and add to backend/.env as AMSTERDAM_DATA_API_KEY\n2. Create backend/data_import/ directory with separate scripts:\n   - import_lighting.py: fetch /v1/leidingeninfrastructuur/amsterdam_ovl_lichtpunten, parse coords, insert into lighting_points\n   - import_incidents.py: fetch /v1/meldingen (SIA), filter to person/group/public-space categories from last 24 months, geocode, insert into incidents\n   - import_overlast_zones.py: fetch /v1/overlastgebieden, parse 16 zone types with time validity, store geometry as GeoJSON in jsonb, mark cameratoezicht as bonus polarity\n   - import_bag.py: fetch /v1/bag, aggregate building density per ~100m grid cell\n   - import_gebieden.py: fetch /v1/gebieden for buurt polygons\n3. Use httpx for async API calls with retry logic\n4. Implement pagination handling for large datasets\n5. Add logging and error handling\n6. Create CLI script backend/import_all.py that runs all imports sequentially",
         "testStrategy": "Run each import script individually and verify data appears in Supabase tables. Check row counts match expected data volume. Validate geometry/jsonb fields parse correctly. Run import_all.py and confirm all tables populated.",
         "priority": "high",
         "dependencies": [
-          24
+          "24"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 26,
+        "id": "26",
         "title": "Import Veiligheidsindex 2025-3 baseline and survey unsafe areas",
         "description": "Parse and import neighborhood safety baseline scores from XLSX and geocode unsafe areas from the 2025 cyclist survey into Supabase",
         "details": "1. Download Veiligheidsindex 2025-3 XLSX from https://onderzoek.amsterdam.nl/dataset/openbare-orde-en-veiligheid\n2. Create backend/data_import/import_veiligheidsindex.py:\n   - Use openpyxl or pandas to parse XLSX\n   - Extract buurt_code and composite veiligheidsindex score\n   - Normalize scores to 0.0-1.0 range\n   - INSERT into buurt_baseline table\n3. Create backend/data_import/import_unsafe_areas.py:\n   - Manually geocode the 22 clusters + 8 parks + 8 corridors from survey Table 1\n   - Geocode §1.7 hard-to-avoid corridors (Gooiseweg, Diemerpark, etc.)\n   - Geocode §1.8 specific locations (Vondelpark, Leidseplein, stations, etc.)\n   - For parks, use Amsterdam Data API /v1/functionele_gebieden to get exact polygons\n   - For corridors/clusters, create approximate polygon or linestring geometries\n   - Tag each with appropriate kind (park/square/station/corridor/cluster) and source (survey_cluster/survey_corridor/survey_hotspot_type)\n   - INSERT into unsafe_areas table\n4. Store geometries as GeoJSON in jsonb column",
         "testStrategy": "Verify buurt_baseline has entries for all Amsterdam buurten with scores 0.0-1.0. Confirm unsafe_areas table has entries for all survey locations with valid GeoJSON geometry. Spot-check a few well-known areas (Vondelpark, Leidseplein) have correct coordinates.",
         "priority": "high",
         "dependencies": [
-          24,
-          25
+          "24",
+          "25"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 27,
+        "id": "27",
         "title": "Implement pre-computed safety_grid scoring engine",
         "description": "Build grid generation and static layer scoring system that computes lighting, incident, building density, overview, camera, overlast, and hotspot scores per ~100m cell",
         "details": "1. Create backend/grid_scorer.py module\n2. Implement grid generation:\n   - Cover Amsterdam bbox (52.278, 4.728 to 52.431, 5.079) with ~100m cells\n   - Use Haversine formula or simple lat/lng arithmetic\n   - Store grid_x, grid_y, center lat/lng\n3. Implement per-cell scoring functions:\n   - lighting_score: density of lichtpunten within cell radius → 0.0-1.0\n   - incident_score: inverted density of meldingen (last 24m) → 0.0-1.0 (fewer = higher)\n   - building_density_score: BAG residential + non-residential count → 0.0-1.0\n   - overview_score: inverse of dense-green coverage (parks/tunnels) → 0.0-1.0\n   - camera_bonus: 0.0-0.2 if cell overlaps cameratoezicht zone\n   - overlast_penalty: 0.0-0.3 if cell overlaps active overlastgebieden (time-valid)\n   - hotspot_penalty: 0.0-0.2 if cell intersects unsafe_areas\n4. Join to buurt_code via gebieden polygons\n5. Batch INSERT/UPDATE into safety_grid table\n6. Create CLI script backend/compute_grid.py to regenerate grid",
         "testStrategy": "Run compute_grid.py and verify safety_grid table populated. Spot-check a few cells in known safe areas (residential neighborhoods) have high scores. Check cells in known unsafe areas (survey hotspots) have lower scores. Verify all subscores are in valid ranges.",
         "priority": "high",
         "dependencies": [
-          26
+          "26"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 28,
+        "id": "28",
         "title": "Implement time-aware people density scoring with crowdmonitor fallback",
         "description": "Build dynamic people-density scoring using Amsterdam crowdmonitor sensor data with time-of-day heuristic fallback for areas without coverage",
         "details": "1. Create backend/people_density.py module\n2. Implement crowdmonitor integration:\n   - Fetch real-time data from Amsterdam Data API /v1/crowdmonitor\n   - Map sensor readings to grid cells\n   - Cache results for 15 min to reduce API calls\n3. Implement heuristic fallback for uncovered areas:\n   - Define time windows: day (06-20), evening (20-23), night (23-06)\n   - Define street types: residential, commercial, park, transit\n   - Create lookup table: street_type × time_window → density estimate (0.0-1.0)\n   - Use building_density_score and unsafe_area kind to infer street type\n4. Create function get_people_density(lat, lng, time) that:\n   - Checks crowdmonitor cache first\n   - Falls back to heuristic if no sensor coverage\n   - Returns 0.0-1.0 score\n5. Add UI flag to indicate when heuristic is used vs real sensor data",
         "testStrategy": "Test with various lat/lng/time combinations. Verify crowdmonitor data is used when available. Confirm heuristic returns sensible values for uncovered areas. Check that residential areas at night get low density scores, commercial areas during day get high scores.",
         "priority": "medium",
         "dependencies": [
-          27
+          "27"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 29,
+        "id": "29",
         "title": "Build deterministic route scoring and selection engine",
         "description": "Implement the weighted safety scoring formula with time-of-day layer weights and route selection logic that picks the highest-scoring alternative from Google Directions",
         "details": "1. Create backend/route_scorer.py module\n2. Implement time-of-day weight tables from PRD Table (survey-seeded):\n   - Day (06-20): people 0.22, overview 0.16, lighting 0.14, buildings 0.18, camera 0.04, overlast -0.08, incidents -0.10, hotspot -0.08\n   - Evening (20-23): people 0.20, overview 0.18, lighting 0.20, buildings 0.14, camera 0.06, overlast -0.14, incidents -0.10, hotspot -0.12\n   - Night (23-06): people 0.18, overview 0.20, lighting 0.26, buildings 0.10, camera 0.08, overlast -0.18, incidents -0.10, hotspot -0.16\n3. Implement cell_score(lat, lng, time) function:\n   - Fetch safety_grid scores for cell\n   - Get people_density for time\n   - Apply time-window weights\n   - Multiply by buurt_baseline veiligheidsindex\n   - Return composite score 0.0-10.0\n4. Implement route_score(polyline, time) function:\n   - Decode polyline to lat/lng points\n   - Sample points every ~50m\n   - Map each point to grid cell\n   - Compute mean(cell_score) across route\n   - Scale to 0-10\n5. Implement select_safest_route(alternatives, time):\n   - Score each alternative\n   - Return highest-scoring route\n   - Track which unsafe_areas each route intersects for avoidance summary",
         "testStrategy": "Create test routes through known safe vs unsafe areas. Verify scoring returns expected ordering. Test time-of-day changes affect scores correctly (e.g., route through park safer during day than night). Confirm route selection picks the expected alternative.",
         "priority": "high",
         "dependencies": [
-          28
+          "28"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 30,
+        "id": "30",
         "title": "Integrate Anthropic Claude SDK for AI avoidance summaries and tips",
         "description": "Add Claude Sonnet 4.6 integration to generate 'what this route avoids' summaries and contextual safety tips with prompt caching",
         "details": "1. Add anthropic SDK to backend/requirements.txt: anthropic>=0.40.0\n2. Add ANTHROPIC_API_KEY to backend/.env\n3. Create backend/ai_tips.py module\n4. Implement system prompt (cacheable):\n   - Role: safety route explainer\n   - Input format: route polyline summary, grid cells crossed, layer subscores, departure time, mode, intersected unsafe_areas\n   - Output format: {\"avoids\": {\"areas\": [\"Leidseplein\", \"Vondelpark south edge\"], \"summary\": \"This route avoids...\"}, \"tips\": [\"tip1\", \"tip2\", \"tip3\"]}\n   - Constraints: 1 sentence avoidance summary naming specific streets/squares/parks, 1-3 contextual tips, 2s timeout, deterministic areas list from scorer\n5. Implement generate_tips(route_data) function:\n   - Call Claude Messages API with claude-sonnet-4-6 model\n   - Use prompt caching on system prompt\n   - 2s timeout with fallback to static tips\n   - Return {avoids, tips, ai_status}\n6. Create fallback tips:\n   - Static list based on time/mode/hotspots\n   - E.g., night → \"Share live location\", park → \"Stay on main paths\", etc.",
         "testStrategy": "Test with real route data and verify Claude returns valid JSON with avoidance summary and tips. Verify prompt caching reduces latency on repeat calls. Test timeout fallback by simulating slow API response. Confirm fallback tips are sensible when AI fails.",
         "priority": "high",
         "dependencies": [
-          29
+          "29"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 31,
+        "id": "31",
         "title": "Update backend /routes endpoint to return safest route with AI summary",
         "description": "Refactor /routes endpoint to integrate route scoring, selection, and AI tip generation matching PRD API spec",
         "details": "1. Update backend/main.py /routes endpoint:\n   - Add time query param (default to now)\n   - Fetch Google Directions alternatives (up to 3) for mode\n   - Score each alternative using route_scorer.route_score()\n   - Select highest-scoring route\n   - Extract distance_m, duration_min, polyline\n   - Detect hotspots_passed from intersected unsafe_areas\n   - Call ai_tips.generate_tips() with route data\n   - Return JSON matching PRD spec:\n     {\n       \"route\": {\"polyline\": ..., \"distance_m\": ..., \"duration_min\": ..., \"hotspots_passed\": [...]},\n       \"avoids\": {\"areas\": [...], \"summary\": \"...\"},\n       \"tips\": [...],\n       \"ai_status\": \"ok\"|\"fallback\"\n     }\n2. Handle errors gracefully:\n   - Google API failures → 400 with detail\n   - Scoring failures → 500 with detail\n   - AI failures → continue with fallback (ai_status: \"fallback\")\n3. Add request logging for debugging",
         "testStrategy": "Test with various origin/destination/mode/time combinations. Verify safest route is selected (compare to alternatives). Confirm AI summary and tips are returned. Test with invalid addresses (should 400). Test with ANTHROPIC_API_KEY unset (should fallback). Load test with 10 concurrent requests.",
         "priority": "high",
         "dependencies": [
-          30
+          "30"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 32,
+        "id": "32",
         "title": "Build frontend route input form with time picker and mode selector",
         "description": "Update frontend to collect origin, destination, departure time (default now), and mode (cycling/walking) with proper validation",
         "details": "1. Update frontend/app/page.tsx:\n   - Add time state with default Date.now()\n   - Add time picker input (HTML5 datetime-local or custom component)\n   - Keep existing mode selector (cycling/walking)\n   - Update form submission to include time in API call\n2. Update AddressInput component:\n   - Ensure Google Places Autocomplete is properly initialized\n   - Add .env.local requirement: NEXT_PUBLIC_GOOGLE_MAPS_API_KEY\n   - Filter suggestions to Amsterdam area using componentRestrictions\n3. Add client-side validation:\n   - Require both origin and destination\n   - Warn if time is in the past\n   - Disable submit if invalid\n4. Update UI to match PRD framing:\n   - Add hero stat: \"78% of young Amsterdam women feel afraid cycling at night\"\n   - Add mission statement: \"We're changing that — and giving women back the night\"\n   - Update tagline to emphasize safety for women",
         "testStrategy": "Test form submission with all combinations of inputs. Verify time defaults to now. Confirm validation prevents empty submissions. Check Google Places Autocomplete suggests Amsterdam addresses. Verify UI displays hero stat and mission.",
         "priority": "medium",
         "dependencies": [
-          31
+          "31"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 33,
+        "id": "33",
         "title": "Build route results display with avoidance summary, tips, and Google Maps handoff",
         "description": "Create UI to display the safest route with map preview, AI avoidance summary, contextual tips, and one-tap Google Maps deep-link",
         "details": "1. Update frontend/app/page.tsx results section:\n   - Display single route (not alternatives)\n   - Show distance and duration prominently\n   - Render avoids.summary in readable typography\n   - Display avoids.areas as chips/pills\n   - List tips as numbered or bulleted items\n   - Add \"Open in Google Maps\" button that deep-links to route\n2. Update MapPreview component:\n   - Use Google Maps JavaScript API to render route polyline on static map\n   - Show start/end markers\n   - Style map to be clean and readable\n   - Add NEXT_PUBLIC_GOOGLE_MAPS_API_KEY requirement\n3. Implement Google Maps deep-link:\n   - Format: https://www.google.com/maps/dir/?api=1&origin=LAT,LNG&destination=LAT,LNG&travelmode=bicycling|walking\n   - Extract origin/destination coords from route data\n   - Open in new tab on click\n4. Add loading states and error handling:\n   - Skeleton UI while fetching\n   - Error message if route fails\n   - Fallback tips if ai_status === \"fallback\"\n5. Style to match PRD minimal aesthetic (clean, readable, focused)",
         "testStrategy": "Submit a route and verify all elements render correctly. Check avoidance summary is readable and accurate. Confirm tips are relevant to route/time/mode. Click \"Open in Google Maps\" and verify it opens with correct route and mode. Test with ai_status: \"fallback\" to ensure fallback tips display.",
         "priority": "high",
         "dependencies": [
-          32
+          "32"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 34,
+        "id": "34",
         "title": "Add GET /tips endpoint for dynamic tip regeneration",
         "description": "Create endpoint to regenerate tips without re-routing when user changes time, allowing interactive exploration",
         "details": "1. Add GET /tips endpoint to backend/main.py:\n   - Query params: time (timestamp), mode (bicycling|walking), hotspots (comma-separated list)\n   - Call ai_tips.generate_tips() with provided context\n   - Return {\"tips\": [...], \"ai_status\": \"ok\"|\"fallback\"}\n2. Update frontend to call /tips when user changes time without re-submitting form:\n   - Add \"Update tips\" button or auto-update on time change\n   - Debounce updates to avoid excessive API calls\n   - Show loading spinner during tip regeneration\n   - Preserve existing route display while updating tips\n3. Handle edge cases:\n   - Invalid time format → 400\n   - AI timeout → fallback tips\n   - No hotspots → generic tips",
         "testStrategy": "Display a route, then change time and click \"Update tips\". Verify tips update without re-routing. Test with various time/mode combinations. Confirm fallback works on AI failure. Check debouncing prevents excessive calls.",
         "priority": "low",
         "dependencies": [
-          33
+          "33"
         ],
         "status": "pending",
         "subtasks": []
       },
       {
-        "id": 35,
+        "id": "35",
         "title": "Deploy backend to Railway and frontend to Vercel with production env vars",
         "description": "Configure production deployment with all required API keys and environment variables, update CORS for production origin",
         "details": "1. Backend Railway deployment:\n   - Push to main branch triggers auto-deploy via railway.json\n   - Add Railway env vars: SUPABASE_URL, SUPABASE_KEY, DATABASE_URL, GOOGLE_DIRECTIONS_API_KEY, ANTHROPIC_API_KEY, AMSTERDAM_DATA_API_KEY\n   - Update ALLOWED_ORIGINS to include production frontend URL\n   - Verify health endpoint accessible\n2. Frontend Vercel deployment:\n   - Push to main branch triggers auto-deploy via .github/workflows/deploy-frontend.yml\n   - Add Vercel env vars: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_API_URL (Railway URL), NEXT_PUBLIC_GOOGLE_MAPS_API_KEY\n   - Verify production build succeeds\n3. Test end-to-end flow on production:\n   - Submit route request\n   - Verify CORS allows frontend → backend\n   - Confirm all APIs respond correctly\n4. Run data import scripts on production database:\n   - SSH into Railway or use Railway CLI\n   - Run backend/import_all.py to populate Supabase\n   - Run backend/compute_grid.py to generate safety grid\n5. Monitor logs for errors",
         "testStrategy": "Access production URL and submit test route. Verify route returns with avoidance summary and tips. Check Google Maps handoff works. Inspect browser console for CORS errors. Check Railway logs for backend errors. Verify Supabase tables are populated in production.",
         "priority": "high",
         "dependencies": [
-          33,
-          34
+          "33",
+          "34"
         ],
         "status": "pending",
         "subtasks": []
       }
     ],
     "metadata": {
-      "created": "2026-04-21T20:00:56.525Z",
-      "updated": "2026-04-25T10:42:54.281Z",
-      "description": "Tasks for master context"
+      "version": "1.0.0",
+      "lastModified": "2026-04-25T10:52:09.008Z",
+      "taskCount": 12,
+      "completedCount": 1,
+      "tags": [
+        "master"
+      ]
     }
   }
 }
