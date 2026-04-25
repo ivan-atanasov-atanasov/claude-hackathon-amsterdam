@@ -4,5 +4,5 @@ import Home from '../app/page'
 
 it('renders the homepage headline', () => {
   render(<Home />)
-  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Something meaningful')
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Stella.app')
 })
