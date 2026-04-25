@@ -17,8 +17,8 @@ export function PostRouteCheckin({ result, onBack, onReset }: Props) {
   const [rating, setRating] = useState<number | null>(null);
   const { route } = result;
 
-  const isLow  = rating !== null && rating <= 2;
-  const isHigh = rating !== null && rating >= 3;
+  const isLow  = rating !== null && rating <= 3;
+  const isHigh = rating !== null && rating >= 4;
 
   function btnStyle(n: number): React.CSSProperties {
     const base: React.CSSProperties = {
@@ -32,8 +32,8 @@ export function PostRouteCheckin({ result, onBack, onReset }: Props) {
       if (n < rating)  return { ...base, background: "rgba(180,40,0,0.55)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(180,40,0,0.3)" };
       return { ...base, background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.28)", border: "1px solid rgba(255,255,255,0.08)" };
     }
-    // isHigh
-    if (n <= rating) return { ...base, background: Y, color: "#000", border: "none" };
+    // isHigh (4–5)
+    if (n <= (rating ?? 0)) return { ...base, background: Y, color: "#000", border: "none" };
     return { ...base, background: "rgba(255,255,255,0.07)", color: "rgba(255,255,255,0.28)", border: "1px solid rgba(255,255,255,0.08)" };
   }
 
@@ -113,14 +113,7 @@ export function PostRouteCheckin({ result, onBack, onReset }: Props) {
         )}
 
         {/* Bottom actions */}
-        <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "8px", paddingTop: "6px" }}>
-          {rating !== null && (
-            <button onClick={() => setRating(null)} style={{
-              width: "100%", padding: "12px", borderRadius: "11px",
-              background: "transparent", border: "1px solid rgba(255,255,255,0.2)",
-              color: "rgba(255,255,255,0.45)", fontFamily: "inherit", fontSize: "14px", cursor: "pointer",
-            }}>Replay check-in</button>
-          )}
+        <div style={{ marginTop: "auto", paddingTop: "6px" }}>
           <button onClick={onReset} style={{
             width: "100%", padding: "14px", borderRadius: "11px",
             background: "transparent", border: "none",
