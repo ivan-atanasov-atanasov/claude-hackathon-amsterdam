@@ -2,7 +2,7 @@
 Claude AI integration for route avoidance summaries and safety tips.
 
 Uses claude-sonnet-4-6 with prompt caching on the system prompt.
-Hard timeout of 2s; on failure returns ai_status='fallback' with static tips.
+Hard timeout of 20s; on failure returns ai_status='fallback' with static tips.
 
 Output schema:
   avoids:   { areas: [str], summary: str }
@@ -134,7 +134,7 @@ async def generate_route_narrative(
                 ],
                 messages=[{"role": "user", "content": user_prompt}],
             ),
-            timeout=8.0,
+            timeout=20.0,
         )
 
         import json
