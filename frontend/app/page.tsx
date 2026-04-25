@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { fetchRoute, fetchTips } from "@/lib/api";
-import type { RouteResponse, TipsResponse } from "@/lib/api";
+import { fetchRoute } from "@/lib/api";
+import type { RouteResponse } from "@/lib/api";
 import { AddressInput } from "@/components/AddressInput";
 import { MapIllustration } from "@/components/MapIllustration";
 import { RouteResult } from "@/components/RouteResult";
@@ -57,15 +57,10 @@ export default function Home() {
   const [departureTime, setDepartureTime] = useState(defaultDepartureTime);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [result, setResult] = useState<RouteResponse | null>(null);
-  const [tipsOverride, setTipsOverride] = useState<TipsResponse | null>(null);
-  const [routeTime, setRouteTime] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [tipsLoading, setTipsLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
-
-  const timeChanged = result !== null && departureTime !== routeTime;
 
   // Auto-open the native date picker as soon as the row appears
   useEffect(() => {
@@ -95,36 +90,17 @@ export default function Home() {
     e.preventDefault();
     setError(null);
     setResult(null);
-    setTipsOverride(null);
     setLoading(true);
     try {
       const iso = useNow ? new Date().toISOString() : new Date(departureTime).toISOString();
       const data = await fetchRoute(from, to, mode, iso);
       setResult(data);
-      setRouteTime(departureTime);
       setScreen("results");
-      setTipsLoading(true);
-      fetchTips(data.safety_score, data.hotspots, iso, mode)
-        .then((tips) => { setTipsOverride(tips); setRouteTime(departureTime); })
-        .catch(() => {})
-        .finally(() => setTipsLoading(false));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleUpdateTips() {
-    if (!result) return;
-    setTipsLoading(true);
-    try {
-      const iso = useNow ? new Date().toISOString() : new Date(departureTime).toISOString();
-      const data = await fetchTips(result.safety_score, result.avoids.areas, iso, mode);
-      setTipsOverride(data);
-      setRouteTime(departureTime);
-    } catch { /* keep existing */ }
-    finally { setTipsLoading(false); }
   }
 
   if (screen === "checkin" && result) {
@@ -137,10 +113,6 @@ export default function Home() {
         result={result}
         fromAddress={fromLabel || from}
         toAddress={to}
-        tipsOverride={tipsOverride}
-        tipsLoading={tipsLoading}
-        timeChanged={timeChanged}
-        onUpdateTips={handleUpdateTips}
         onBack={() => setScreen("input")}
         onArrived={() => setScreen("checkin")}
       />

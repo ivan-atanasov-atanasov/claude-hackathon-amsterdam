@@ -31,6 +31,7 @@ function riskStyle(cell: GridCell): { color: string; opacity: number; radius: nu
 
 interface Props {
   polyline?: string;
+  alternativePolyline?: string;
   startLocation?: { lat: number; lng: number };
   endLocation?: { lat: number; lng: number };
   showRoute?: boolean;
@@ -42,6 +43,7 @@ let counter = 0;
 
 export default function MapPreviewInner({
   polyline,
+  alternativePolyline,
   startLocation,
   endLocation,
   showRoute = true,
@@ -83,9 +85,12 @@ export default function MapPreviewInner({
 
       if (showRoute && polyline) {
         const coords = decodePolyline(polyline);
+        const altCoords = alternativePolyline ? decodePolyline(alternativePolyline) : [];
 
         if (coords.length > 1) {
-          const bounds = L.latLngBounds(coords);
+          // Fit to BOTH routes so the user sees the comparison
+          const allCoords = altCoords.length > 1 ? [...coords, ...altCoords] : coords;
+          const bounds = L.latLngBounds(allCoords);
           map.fitBounds(bounds, { padding: [32, 32] });
 
           // Fetch and render safety heatmap for the route bounding box
@@ -109,6 +114,18 @@ export default function MapPreviewInner({
               });
             })
             .catch(() => {});
+        }
+
+        // Less-safe alternative drawn first, dashed red, beneath the safe route
+        if (altCoords.length > 1) {
+          L.polyline(altCoords, {
+            color: "#ff3322",
+            weight: 4,
+            opacity: 0.85,
+            lineJoin: "round",
+            lineCap: "round",
+            dashArray: "8 6",
+          }).addTo(map);
         }
 
         L.polyline(coords, {

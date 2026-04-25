@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { MapPreview } from "@/components/MapPreview";
-import type { RouteAvoids, RouteResponse } from "@/lib/api";
+import type { RouteResponse } from "@/lib/api";
 
 const Y  = "#ffff05";
 const BD = "#000099";
@@ -108,45 +108,53 @@ interface Props {
   result: RouteResponse;
   fromAddress?: string;
   toAddress?: string;
-  tipsOverride?: { avoids: RouteAvoids; tips: string[]; ai_status: "ok" | "fallback" } | null;
-  tipsLoading?: boolean;
-  timeChanged?: boolean;
-  onUpdateTips?: () => void;
   onBack: () => void;
   onArrived: () => void;
 }
 
-export function RouteResult({ result, fromAddress, toAddress, tipsOverride, tipsLoading, timeChanged, onUpdateTips, onBack, onArrived }: Props) {
-  const [etaOpen, setEtaOpen] = useState(false);
-  const { route, safety_score, mode } = result;
+const KIND_LABEL: Record<string, string> = {
+  park: "PARK · DARK",
+  square: "SQUARE",
+  station: "STATION",
+  corridor: "ISOLATED",
+};
 
-  // Always use the deterministic scorer's areas — they come from hotspot data
-  // and are reliable. Only take the AI's narrative summary when available.
-  const avoidAreas   = result.avoids?.areas ?? [];
-  const avoidSummary = tipsOverride?.avoids?.summary || result.avoids.summary;
-  const tips         = tipsOverride?.tips ?? result.tips;
-  const ai_status    = tipsOverride?.ai_status ?? result.ai_status;
+export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived }: Props) {
+  const [etaOpen, setEtaOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
+  const { route, mode, alternative_route, alternative_safety_score, safety_score, avoidance_diff, chose_safer_than_google } = result;
 
   const routeLabel = route.duration_text;
 
+  // Build a deduplicated list of specific reasons from the avoidance diff.
+  // avoided_named is what the alternative passes through but Stella's route doesn't.
+  const avoidedNamed = avoidance_diff?.avoided_named ?? [];
+  const avoidedPointerCount = avoidance_diff?.avoided_pointer_count ?? 0;
+
+  // Time/distance trade-off vs the alternative
+  let comparison: { extraSec: number; extraM: number; scoreGain: number } | null = null;
+  if (chose_safer_than_google && alternative_route) {
+    comparison = {
+      extraSec: route.duration_s - alternative_route.duration_s,
+      extraM: route.distance_m - alternative_route.distance_m,
+      scoreGain: alternative_safety_score != null ? safety_score - alternative_safety_score : 0,
+    };
+  }
+
+  function fmtMin(seconds: number): string {
+    const m = Math.round(Math.abs(seconds) / 60);
+    if (m === 0) return "<1 min";
+    return `${m} min`;
+  }
+
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: BD, position: "relative", overflow: "hidden", fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif" }}>
-
-      {/* Time-changed banner */}
-      {timeChanged && (
-        <div style={{ background: "rgba(255,255,5,0.12)", borderBottom: "1px solid rgba(255,255,5,0.25)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "10px 18px" }}>
-          <span style={{ color: Y, fontSize: "13px", fontWeight: 500 }}>Time changed — update tips?</span>
-          <button onClick={onUpdateTips} disabled={tipsLoading}
-            style={{ background: Y, border: "none", color: "#000", fontWeight: 700, fontSize: "12px", padding: "6px 14px", borderRadius: "10px", cursor: "pointer", fontFamily: "inherit", opacity: tipsLoading ? 0.6 : 1 }}>
-            {tipsLoading ? "Updating…" : "Update"}
-          </button>
-        </div>
-      )}
 
       {/* Map — capped at 38% of viewport so the panel always has room on small phones */}
       <div style={{ position: "relative", height: "min(260px, 38dvh)", flexShrink: 0 }}>
         <MapPreview
           polyline={route.polyline}
+          alternativePolyline={alternative_route?.polyline}
           startLocation={route.start_location}
           endLocation={route.end_location}
           showRoute
@@ -201,62 +209,99 @@ export function RouteResult({ result, fromAddress, toAddress, tipsOverride, tips
           <span style={{ color: Y, fontSize: "12px", fontWeight: 700, flexShrink: 0 }}>Edit ✎</span>
         </button>
 
+        {/* Comparison summary: how does Stella's route differ from Google's default? */}
+        {comparison && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", background: "rgba(255,255,5,0.08)", border: "1px solid rgba(255,255,5,0.22)", borderRadius: "12px", padding: "10px 13px" }}>
+            <div style={{ width: 14, height: 4, background: "#3B5BDB", borderRadius: 2, flexShrink: 0 }} />
+            <span style={{ color: "#fff", fontSize: "13px", fontWeight: 600, flex: 1, lineHeight: 1.35 }}>
+              {comparison.extraSec > 30
+                ? <>+{fmtMin(comparison.extraSec)} longer than the fastest route — but safer.</>
+                : comparison.extraSec < -30
+                  ? <>{fmtMin(comparison.extraSec)} faster <span style={{ color: "rgba(255,255,255,0.7)" }}>and</span> safer.</>
+                  : <>Same time as the fastest route — and safer.</>
+              }
+            </span>
+            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
+              <div style={{ width: 14, height: 0, borderTop: "2px dashed #ff3322" }} />
+              <span style={{ color: "rgba(255,255,255,0.55)", fontSize: "11px" }}>fastest</span>
+            </div>
+          </div>
+        )}
+
         <div style={{ color: "rgba(255,255,255,0.38)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.13em", textTransform: "uppercase" }}>
-          Route avoids
+          About Stella
         </div>
 
-        {/* Avoidance card — no overflow:hidden (clips content in mobile Safari flex layout) */}
+        {/* Why is this a safer route? — specific avoidances from Pointer + named hotspots */}
         <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.07)" }}>
           <div style={{ height: "3px", background: Y, borderRadius: "14px 14px 0 0" }} />
           <div style={{ padding: "13px 15px" }}>
-            {avoidAreas.length > 0 ? (
-              <>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: avoidSummary ? "10px" : 0 }}>
-                  {avoidAreas.map((area) => {
-                    const kindMap: Record<string, string> = {
-                      "incident hotspots": "INCIDENTS", "areas without camera coverage": "NO CCTV",
-                      "poorly lit streets": "DARK", "isolated paths": "ISOLATED",
-                      "areas with frequent incident reports": "INCIDENTS",
-                    };
-                    const kind = kindMap[area] ?? "AVOIDED";
-                    return (
-                      <div key={area} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <span style={{ color: Y, fontWeight: 700, fontSize: "17px" }}>
-                          {area.charAt(0).toUpperCase() + area.slice(1)}
+            <div style={{ color: Y, fontWeight: 700, fontSize: "16px", marginBottom: "9px" }}>
+              Why is this a safer route?
+            </div>
+
+            {(avoidedNamed.length > 0 || avoidedPointerCount > 0) ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {avoidedNamed.map((a) => (
+                  <div key={a.name} style={{ display: "flex", alignItems: "flex-start", gap: "9px" }}>
+                    <span style={{ color: Y, fontSize: "14px", lineHeight: "20px", flexShrink: 0 }}>✦</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+                        <span style={{ color: "#fff", fontWeight: 700, fontSize: "14px" }}>{a.name}</span>
+                        <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "5px", padding: "1px 6px", color: "rgba(255,255,255,0.55)", fontSize: "9px", fontWeight: 700, letterSpacing: "0.05em" }}>
+                          {KIND_LABEL[a.kind] ?? a.kind.toUpperCase()}
                         </span>
-                        <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "6px", padding: "2px 7px", color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: 700 }}>{kind}</span>
                       </div>
-                    );
-                  })}
-                </div>
-                {avoidSummary && (
-                  <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoidSummary}</div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "12.5px", lineHeight: 1.45, marginTop: "1px" }}>
+                        {a.reason}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {avoidedPointerCount > 0 && (
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "9px" }}>
+                    <span style={{ color: Y, fontSize: "14px", lineHeight: "20px", flexShrink: 0 }}>✦</span>
+                    <div>
+                      <div style={{ color: "#fff", fontWeight: 700, fontSize: "14px" }}>
+                        {avoidedPointerCount} user-reported unsafe spot{avoidedPointerCount === 1 ? "" : "s"}
+                      </div>
+                      <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "12.5px", lineHeight: 1.45, marginTop: "1px" }}>
+                        Locations where women told us they felt unsafe (Pointer crowdsourced data).
+                      </div>
+                    </div>
+                  </div>
                 )}
-              </>
+              </div>
             ) : (
-              <>
-                <div style={{ color: Y, fontWeight: 700, fontSize: "17px", marginBottom: "5px" }}>Safest available route</div>
-                <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoidSummary || "No specific hazards identified on this route."}</div>
-              </>
+              <div style={{ color: "rgba(255,255,255,0.62)", fontSize: "13.5px", lineHeight: 1.5 }}>
+                This route stays clear of dark stretches and unsafe spots reported by women. No specific hotspots flagged on the way.
+              </div>
             )}
           </div>
         </div>
 
-        {/* AI TIP */}
-        {tips.length > 0 && (
-          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", padding: "13px 15px", border: "1px solid rgba(255,255,255,0.07)", opacity: tipsLoading ? 0.55 : 1, transition: "opacity 0.2s" }}>
-            <div style={{
-              display: "inline-flex", alignItems: "center", gap: "5px",
-              background: "linear-gradient(125deg, rgba(110,70,210,0.85) 0%, rgba(190,80,210,0.85) 100%)",
-              borderRadius: "20px", padding: "3px 11px", marginBottom: "9px",
-            }}>
-              <span style={{ color: "#fff", fontSize: "10px", fontWeight: 700, letterSpacing: "0.05em" }}>
-                ✦ AI TIP{ai_status === "fallback" ? " (general)" : ""}{tipsLoading ? " — updating…" : ""}
-              </span>
+        {/* Collapsible "About Stella" — data sources + mission */}
+        <button onClick={() => setAboutOpen((v) => !v)} style={{
+          background: "transparent", border: "none", padding: "2px 0",
+          color: "rgba(255,255,255,0.55)", fontSize: "12px", fontWeight: 600,
+          cursor: "pointer", fontFamily: "inherit", textAlign: "left",
+        }}>
+          {aboutOpen ? "▾ Hide data sources & mission" : "▸ How we know · what Stella stands for"}
+        </button>
+        {aboutOpen && (
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: "12px", padding: "12px 14px", border: "1px solid rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.72)", fontSize: "12.5px", lineHeight: 1.55 }}>
+            <div style={{ color: Y, fontWeight: 700, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>
+              Data sources
             </div>
-            <p style={{ color: "rgba(255,255,255,0.82)", fontSize: "14px", lineHeight: 1.55 }}>
-              {tips[0]}
-            </p>
+            <div style={{ marginBottom: "10px" }}>
+              Stella combines crowdsourced reports from <strong>Pointer</strong> (where women told researchers they felt unsafe), the <strong>Amsterdam Veiligheidsindex</strong> (perceived neighborhood safety per buurt, 1–10), and <strong>BBGA</strong> indicators on harassment, drunken nuisance and registered crime. Routing also weighs lighting, building density and time of day.
+            </div>
+            <div style={{ color: Y, fontWeight: 700, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "6px" }}>
+              Why we built this
+            </div>
+            <div>
+              Built for <em>Wij eisen de nacht op</em> (We are taking back the night). The fastest route isn&apos;t always the one a woman wants to take alone after dark. Stella picks routes that respect that — without making you walk an hour out of your way.
+            </div>
           </div>
         )}
 

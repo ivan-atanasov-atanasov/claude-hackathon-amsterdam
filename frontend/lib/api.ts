@@ -27,18 +27,32 @@ export interface RouteResult {
   end_location: { lat: number; lng: number };
 }
 
-export interface RouteAvoids {
-  areas: string[];
-  summary: string;
+export interface NamedUnsafeArea {
+  name: string;
+  kind: string;
+  reason: string;
+}
+
+export interface AvoidanceDiff {
+  avoided_named: NamedUnsafeArea[];
+  avoided_pointer_count: number;
+  safe_still_passes: string[];
+}
+
+export interface PassedAreas {
+  named: NamedUnsafeArea[];
+  pointer_count: number;
 }
 
 export interface RouteResponse {
   route: RouteResult;
+  alternative_route: RouteResult | null;
+  alternative_safety_score: number | null;
   all_routes: RouteResult[];
   safety_score: number;
-  avoids: RouteAvoids;
-  tips: string[];
-  ai_status: "ok" | "fallback" | "pending";
+  avoidance_diff: AvoidanceDiff;
+  passed_areas: PassedAreas;
+  chose_safer_than_google: boolean;
   hotspots: string[];
   mode: string;
   departure_time: string;
@@ -55,19 +69,3 @@ export async function fetchRoute(
   );
 }
 
-export interface TipsResponse {
-  avoids: RouteAvoids;
-  tips: string[];
-  ai_status: "ok" | "fallback";
-}
-
-export async function fetchTips(
-  safety_score: number,
-  hotspots: string[],
-  departure_time: string,
-  mode: string
-): Promise<TipsResponse> {
-  return apiFetch<TipsResponse>(
-    `/tips?safety_score=${safety_score}&hotspots=${encodeURIComponent(hotspots.join(","))}&departure_time=${encodeURIComponent(departure_time)}&mode=${mode}`
-  );
-}
