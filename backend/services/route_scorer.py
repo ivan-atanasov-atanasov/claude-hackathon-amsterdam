@@ -18,13 +18,23 @@ cell_score(t) = veiligheidsindex_buurt
 route_score = mean(cell_score) across sampled points, scaled 0–10.
 """
 
+import asyncio
 import os
 from datetime import datetime, timezone
 
 import polyline as polyline_lib
-from supabase import create_client
+from supabase import create_client, Client
 
 from .people_density import get_people_density
+
+_supabase: Client | None = None
+
+
+def _get_supabase() -> Client:
+    global _supabase
+    if _supabase is None:
+        _supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+    return _supabase
 
 # Time-of-day weight tables (from PRD, seeded from 2025 survey Table 2)
 _WEIGHTS = {
@@ -85,7 +95,7 @@ def _fetch_grid_cells(cell_keys: set[tuple[int, int]]) -> dict[tuple[int, int], 
     """Batch-fetch safety_grid rows for the given cell keys."""
     if not cell_keys:
         return {}
-    client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+    client = _get_supabase()
     # Fetch by grid_x/grid_y pairs — Supabase doesn't support tuple IN, so we
     # fetch a bounding box and filter in Python.
     xs = [k[0] for k in cell_keys]
@@ -106,7 +116,7 @@ def _fetch_grid_cells(cell_keys: set[tuple[int, int]]) -> dict[tuple[int, int], 
 def _fetch_buurt_baseline(buurt_codes: set[str]) -> dict[str, float]:
     if not buurt_codes:
         return {}
-    client = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+    client = _get_supabase()
     rows = (
         client.table("buurt_baseline")
         .select("buurt_code,veiligheidsindex")
@@ -194,9 +204,11 @@ async def select_safest_route(
 
     Each route dict must have a 'polyline' key (encoded Google polyline).
     """
+    results = await asyncio.gather(
+        *[score_route(r["polyline"], departure_time) for r in routes]
+    )
     best_route, best_score, best_hotspots = routes[0], 0.0, []
-    for route in routes:
-        score, hotspots = await score_route(route["polyline"], departure_time)
+    for route, (score, hotspots) in zip(routes, results):
         if score > best_score:
             best_route, best_score, best_hotspots = route, score, hotspots
 
