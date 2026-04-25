@@ -24,8 +24,15 @@ body {
   background: var(--stella-navy);
   color: #ffffff;
   font-family: Arial, Helvetica, sans-serif;
+  /* Prevent overscroll bounce showing white background on iOS */
+  overscroll-behavior: none;
 }
 
 .stella-input::placeholder {
   color: rgba(255, 255, 255, 0.35);
+}
+
+/* Smooth tap highlights on mobile */
+* {
+  -webkit-tap-highlight-color: transparent;
 }
