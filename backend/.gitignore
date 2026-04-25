@@ -17,3 +17,6 @@ build/
 
 # VS Code
 .vscode/
+
+# Generated large data files (re-run import_bag.py to regenerate)
+data/bag_density.json
