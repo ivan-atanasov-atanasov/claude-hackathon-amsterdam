@@ -52,7 +52,7 @@ export default function Home() {
   const [from, setFrom] = useState("");
   const [fromLabel, setFromLabel] = useState("");
   const [to, setTo] = useState("");
-  const [mode, setMode] = useState<"bicycling" | "walking">("cycling" as "bicycling");
+  const [mode, setMode] = useState<"bicycling" | "walking">("bicycling");
   const [useNow, setUseNow] = useState(true);
   const [departureTime, setDepartureTime] = useState(defaultDepartureTime);
   const [showTimePicker, setShowTimePicker] = useState(false);
