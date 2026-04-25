@@ -38,8 +38,9 @@
           "24",
           "25"
         ],
-        "status": "pending",
-        "subtasks": []
+        "status": "in-progress",
+        "subtasks": [],
+        "updatedAt": "2026-04-25T12:21:14.360Z"
       },
       {
         "id": "27",
@@ -162,7 +163,7 @@
     ],
     "metadata": {
       "version": "1.0.0",
-      "lastModified": "2026-04-25T11:10:08.180Z",
+      "lastModified": "2026-04-25T12:21:14.363Z",
       "taskCount": 12,
       "completedCount": 2,
       "tags": [
