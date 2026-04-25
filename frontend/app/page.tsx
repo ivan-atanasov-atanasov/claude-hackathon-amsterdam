@@ -5,6 +5,15 @@ import { fetchRoute, fetchTips } from "@/lib/api";
 import type { RouteResponse, TipsResponse } from "@/lib/api";
 import { AddressInput } from "@/components/AddressInput";
 import { RouteResult } from "@/components/RouteResult";
+import { PostRouteCheckin } from "@/components/PostRouteCheckin";
+
+type Screen = "input" | "results" | "checkin";
+
+function formatTimeLabel(localDatetime: string, isNow: boolean): string {
+  if (isNow) return "Now";
+  const d = new Date(localDatetime);
+  return d.toLocaleTimeString("en-NL", { hour: "2-digit", minute: "2-digit", hour12: true });
+}
 
 function defaultDepartureTime(): string {
   const d = new Date();
@@ -18,10 +27,13 @@ function isPast(localDatetime: string): boolean {
 }
 
 export default function Home() {
+  const [screen, setScreen] = useState<Screen>("input");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [mode, setMode] = useState<"bicycling" | "walking">("bicycling");
   const [departureTime, setDepartureTime] = useState(defaultDepartureTime);
+  const [useNow, setUseNow] = useState(true);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [result, setResult] = useState<RouteResponse | null>(null);
   const [tipsOverride, setTipsOverride] = useState<TipsResponse | null>(null);
   const [routeTime, setRouteTime] = useState<string>("");
@@ -30,6 +42,25 @@ export default function Home() {
   const [tipsLoading, setTipsLoading] = useState(false);
 
   const timeChanged = result !== null && departureTime !== routeTime;
+  const timeLabel = useNow
+    ? "Now"
+    : formatTimeLabel(departureTime, false);
+
+  function handleChangeTime() {
+    setShowTimePicker(true);
+    setUseNow(false);
+  }
+
+  function handleTimeChange(val: string) {
+    setDepartureTime(val);
+    setUseNow(false);
+  }
+
+  function handleUseNow() {
+    setDepartureTime(defaultDepartureTime());
+    setUseNow(true);
+    setShowTimePicker(false);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -38,15 +69,15 @@ export default function Home() {
     setTipsOverride(null);
     setLoading(true);
     try {
-      const iso = new Date(departureTime).toISOString();
+      const iso = useNow ? new Date().toISOString() : new Date(departureTime).toISOString();
       const data = await fetchRoute(from, to, mode, iso);
       setResult(data);
       setRouteTime(departureTime);
-      // Auto-fetch AI tips in the background without blocking route display
+      setScreen("results");
       setTipsLoading(true);
       fetchTips(data.safety_score, data.hotspots, iso, mode)
         .then((tips) => { setTipsOverride(tips); setRouteTime(departureTime); })
-        .catch(() => { /* keep fallback tips on failure */ })
+        .catch(() => { /* keep fallback */ })
         .finally(() => setTipsLoading(false));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -59,146 +90,250 @@ export default function Home() {
     if (!result) return;
     setTipsLoading(true);
     try {
-      const iso = new Date(departureTime).toISOString();
-      const data = await fetchTips(
-        result.safety_score,
-        result.avoids.areas,
-        iso,
-        mode
-      );
+      const iso = useNow ? new Date().toISOString() : new Date(departureTime).toISOString();
+      const data = await fetchTips(result.safety_score, result.avoids.areas, iso, mode);
       setTipsOverride(data);
       setRouteTime(departureTime);
     } catch {
-      // silently keep existing tips on failure
+      /* silently keep existing */
     } finally {
       setTipsLoading(false);
     }
   }
 
-  return (
-    <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-start px-6 py-12">
-      <main className="max-w-xl w-full flex flex-col gap-10">
-        {/* Header */}
-        <div className="flex flex-col gap-3">
-          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-            Anthropic × Claude × Amsterdam × 2026
-          </p>
-          <h1 className="text-4xl font-bold tracking-tight text-zinc-950 dark:text-zinc-50 leading-tight">
-            Stella.app
-          </h1>
-          {/* Hero stat */}
-          <div className="rounded-lg bg-zinc-950 dark:bg-zinc-900 px-4 py-3 flex flex-col gap-1">
-            <p className="text-2xl font-bold text-white leading-tight">78%</p>
-            <p className="text-sm text-zinc-300 leading-snug">
-              of young Amsterdam women feel unsafe cycling at night.
+  if (screen === "checkin" && result) {
+    return (
+      <PostRouteCheckin
+        result={result}
+        onBack={() => setScreen("results")}
+      />
+    );
+  }
+
+  if (screen === "results" && result) {
+    return (
+      <div className="min-h-screen flex flex-col" style={{ background: "var(--stella-navy)" }}>
+        {/* Time-changed banner */}
+        {timeChanged && (
+          <div className="flex items-center justify-between gap-3 px-4 py-3"
+            style={{ background: "rgba(255,229,0,0.12)", borderBottom: "1px solid rgba(255,229,0,0.25)" }}>
+            <p className="text-sm" style={{ color: "var(--stella-yellow)" }}>
+              Departure time changed — update tips?
             </p>
-            <p className="text-xs text-zinc-400 mt-0.5 italic">
-              We&apos;re changing that — and giving women back the night.
-            </p>
+            <button
+              onClick={handleUpdateTips}
+              disabled={tipsLoading}
+              className="text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50"
+              style={{ background: "var(--stella-yellow)", color: "var(--stella-navy)" }}
+            >
+              {tipsLoading ? "Updating…" : "Update"}
+            </button>
           </div>
+        )}
+
+        <RouteResult
+          result={result}
+          tipsOverride={tipsOverride}
+          tipsLoading={tipsLoading}
+          onBack={() => setScreen("input")}
+          onArrived={() => setScreen("checkin")}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col" style={{ background: "var(--stella-navy)" }}>
+      {/* Background gradient evoking map */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: "radial-gradient(ellipse at 50% 30%, rgba(13,19,71,0.6) 0%, var(--stella-navy) 70%)",
+          zIndex: 0,
+        }}
+      />
+
+      <main className="relative z-10 flex flex-col min-h-screen px-5 py-10 max-w-md mx-auto w-full">
+        {/* Logo + tagline */}
+        <div className="flex flex-col gap-1 mb-8">
+          <h1
+            className="text-5xl font-black tracking-tight leading-none"
+            style={{ color: "var(--stella-yellow)" }}
+          >
+            stella.
+          </h1>
+          <p className="text-sm" style={{ color: "var(--stella-muted)" }}>
+            Safer cycling routes for Amsterdam women
+          </p>
+        </div>
+
+        {/* Hero stat */}
+        <div
+          className="rounded-2xl px-4 py-3 mb-8"
+          style={{ background: "var(--stella-navy-card)", border: "1px solid var(--stella-border)" }}
+        >
+          <p className="text-2xl font-bold" style={{ color: "var(--stella-yellow)" }}>78%</p>
+          <p className="text-sm mt-0.5" style={{ color: "rgba(255,255,255,0.75)" }}>
+            of young Amsterdam women feel unsafe cycling at night.
+          </p>
+          <p className="text-xs mt-1 italic" style={{ color: "var(--stella-muted)" }}>
+            We&apos;re giving women back the night.
+          </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-              From
-            </label>
-            <AddressInput
-              placeholder="e.g. Centraal Station, Amsterdam"
-              onSelect={setFrom}
-            />
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+          {/* FROM */}
+          <div
+            className="rounded-2xl px-4 pt-3 pb-3 flex items-start gap-3"
+            style={{ background: "var(--stella-navy-card)", border: "1px solid var(--stella-border)" }}
+          >
+            <div className="flex flex-col items-center gap-1 pt-1">
+              <span
+                className="h-3 w-3 rounded-full border-2 shrink-0"
+                style={{ borderColor: "var(--stella-yellow)", background: "var(--stella-yellow)" }}
+              />
+              <span
+                className="w-px flex-1"
+                style={{ background: "var(--stella-border)", minHeight: "16px" }}
+              />
+            </div>
+            <div className="flex-1 flex flex-col gap-1 min-w-0">
+              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--stella-muted)" }}>
+                From
+              </span>
+              <AddressInput
+                placeholder="e.g. Centraal Station"
+                onSelect={setFrom}
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-              To
-            </label>
-            <AddressInput
-              placeholder="e.g. Vondelpark, Amsterdam"
-              onSelect={setTo}
-            />
+          {/* TO */}
+          <div
+            className="rounded-2xl px-4 pt-3 pb-3 flex items-start gap-3"
+            style={{ background: "var(--stella-navy-card)", border: "1px solid var(--stella-border)" }}
+          >
+            <div className="flex flex-col items-center gap-1 pt-1">
+              <span
+                className="h-3 w-3 rounded-full shrink-0"
+                style={{ border: "2px solid var(--stella-yellow)" }}
+              />
+            </div>
+            <div className="flex-1 flex flex-col gap-1 min-w-0">
+              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--stella-muted)" }}>
+                To
+              </span>
+              <AddressInput
+                placeholder="e.g. Vondelpark"
+                onSelect={setTo}
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500">
-              Mode
-            </label>
-            <div className="flex gap-2">
+          {/* Mode + Time row */}
+          <div className="flex gap-2">
+            {/* Mode toggle */}
+            <div
+              className="flex rounded-xl overflow-hidden shrink-0"
+              style={{ border: "1px solid var(--stella-border)" }}
+            >
               {(["bicycling", "walking"] as const).map((m) => (
                 <button
                   key={m}
                   type="button"
                   onClick={() => setMode(m)}
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-medium border transition-colors ${
+                  className="px-3 py-2.5 text-xs font-semibold transition-colors"
+                  style={
                     mode === m
-                      ? "bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 border-zinc-900 dark:border-zinc-50"
-                      : "bg-transparent text-zinc-500 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600"
-                  }`}
+                      ? { background: "var(--stella-yellow)", color: "var(--stella-navy)" }
+                      : { background: "var(--stella-navy-card)", color: "var(--stella-muted)" }
+                  }
                 >
-                  {m === "bicycling" ? "Cycling" : "Walking"}
+                  {m === "bicycling" ? "🚲 Cycle" : "🚶 Walk"}
                 </button>
               ))}
             </div>
-          </div>
 
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="departure-time"
-              className="text-xs font-semibold uppercase tracking-widest text-zinc-400 dark:text-zinc-500"
+            {/* Time display */}
+            <button
+              type="button"
+              onClick={handleChangeTime}
+              className="flex-1 flex items-center justify-between rounded-xl px-4 py-2.5 text-sm font-medium"
+              style={{ background: "var(--stella-navy-card)", border: "1px solid var(--stella-border)" }}
             >
-              Departure time
-            </label>
-            <input
-              id="departure-time"
-              type="datetime-local"
-              value={departureTime}
-              onChange={(e) => setDepartureTime(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 px-4 py-3 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 text-sm"
-            />
-            {isPast(departureTime) && (
-              <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                This time is in the past — safety scores will reflect those conditions.
-              </p>
-            )}
+              <span className="text-white">
+                {timeLabel}
+                {!useNow && (
+                  <span className="ml-1 text-xs" style={{ color: "var(--stella-muted)" }}>
+                    — {formatTimeLabel(departureTime, false)}
+                  </span>
+                )}
+              </span>
+              <span className="text-xs font-semibold" style={{ color: "var(--stella-yellow)" }}>
+                {useNow ? "Change time" : "✓ Set"}
+              </span>
+            </button>
           </div>
 
+          {/* Time picker (shown when "Change time" clicked) */}
+          {showTimePicker && (
+            <div
+              className="rounded-2xl px-4 py-3 flex flex-col gap-2"
+              style={{ background: "var(--stella-navy-card)", border: "1px solid var(--stella-border)" }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--stella-muted)" }}>
+                  Departure time
+                </span>
+                <button
+                  type="button"
+                  onClick={handleUseNow}
+                  className="text-xs font-semibold"
+                  style={{ color: "var(--stella-yellow)" }}
+                >
+                  Use Now
+                </button>
+              </div>
+              <input
+                type="datetime-local"
+                value={departureTime}
+                onChange={(e) => handleTimeChange(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"
+                style={{
+                  background: "rgba(255,255,255,0.08)",
+                  border: "1px solid var(--stella-border)",
+                  color: "#ffffff",
+                  colorScheme: "dark",
+                }}
+              />
+              {isPast(departureTime) && (
+                <p className="text-xs" style={{ color: "rgba(251,191,36,0.9)" }}>
+                  This time is in the past — safety scores will reflect those conditions.
+                </p>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <p className="text-sm px-1" style={{ color: "#f87171" }}>{error}</p>
+          )}
+
+          {/* CTA */}
           <button
             type="submit"
             disabled={loading || !from || !to}
-            className="w-full py-3 rounded-lg bg-zinc-900 dark:bg-zinc-50 text-white dark:text-zinc-900 font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+            className="w-full py-4 rounded-2xl font-bold text-base disabled:opacity-40 disabled:cursor-not-allowed transition-opacity hover:opacity-90 mt-1"
+            style={{ background: "var(--stella-yellow)", color: "var(--stella-navy)" }}
           >
             {loading ? "Finding safest route…" : "Find safest route"}
           </button>
         </form>
 
-        {error && (
-          <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
-        )}
-
-        {/* Update tips banner — shown when time changed after route loaded */}
-        {timeChanged && (
-          <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 px-4 py-3">
-            <p className="text-sm text-amber-800 dark:text-amber-300">
-              Departure time changed — update tips for the new time?
-            </p>
-            <button
-              onClick={handleUpdateTips}
-              disabled={tipsLoading}
-              className="shrink-0 rounded-lg bg-amber-800 dark:bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 hover:opacity-90 disabled:opacity-50 transition-opacity"
-            >
-              {tipsLoading ? "Updating…" : "Update tips"}
-            </button>
-          </div>
-        )}
-
-        {result && (
-          <RouteResult
-            result={result}
-            tipsOverride={tipsOverride}
-            tipsLoading={tipsLoading}
-          />
-        )}
+        {/* Footer */}
+        <p className="mt-auto pt-10 text-center text-xs" style={{ color: "var(--stella-muted)" }}>
+          Anthropic × Claude × Amsterdam 2026
+        </p>
       </main>
     </div>
   );
