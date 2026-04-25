@@ -38,7 +38,8 @@ export interface RouteResponse {
   safety_score: number;
   avoids: RouteAvoids;
   tips: string[];
-  ai_status: "ok" | "fallback";
+  ai_status: "ok" | "fallback" | "pending";
+  hotspots: string[];
   mode: string;
   departure_time: string;
 }

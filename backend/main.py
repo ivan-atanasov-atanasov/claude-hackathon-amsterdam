@@ -91,21 +91,18 @@ async def get_routes(
     # Score all route alternatives and select the safest
     best_route, safety_score, hotspots = await select_safest_route(routes, dt)
 
-    # Generate AI avoidance summary and tips
-    narrative = await generate_route_narrative(
-        hotspots_passed=hotspots,
-        route_score=safety_score,
-        departure_time=dt,
-        mode=mode,
-    )
+    # Return route immediately — frontend fetches AI tips separately via /tips
+    from services.ai_narrator import _fallback_response
+    fallback = _fallback_response(hotspots, dt)
 
     return {
         "route": best_route,
         "all_routes": routes,
         "safety_score": safety_score,
-        "avoids": narrative["avoids"],
-        "tips": narrative["tips"],
-        "ai_status": narrative["ai_status"],
+        "avoids": fallback["avoids"],
+        "tips": fallback["tips"],
+        "ai_status": "pending",
+        "hotspots": hotspots,
         "mode": mode,
         "departure_time": dt.isoformat(),
     }
