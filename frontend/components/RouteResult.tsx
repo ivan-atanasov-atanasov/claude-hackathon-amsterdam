@@ -105,9 +105,12 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
   const [etaOpen, setEtaOpen] = useState(false);
   const { route, safety_score, mode } = result;
 
-  const avoids = tipsOverride?.avoids ?? result.avoids;
-  const tips   = tipsOverride?.tips   ?? result.tips;
-  const ai_status = tipsOverride?.ai_status ?? result.ai_status;
+  // Always use the deterministic scorer's areas — they come from hotspot data
+  // and are reliable. Only take the AI's narrative summary when available.
+  const avoidAreas   = result.avoids.areas;
+  const avoidSummary = tipsOverride?.avoids?.summary || result.avoids.summary;
+  const tips         = tipsOverride?.tips ?? result.tips;
+  const ai_status    = tipsOverride?.ai_status ?? result.ai_status;
 
   const routeLabel = `${route.summary || "Amsterdam"} · ${route.duration_text}`;
 
@@ -164,12 +167,12 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
         </div>
 
         {/* Avoidance cards */}
-        {avoids.areas.length > 0 ? (
+        {avoidAreas.length > 0 ? (
           <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
             <div style={{ height: "3px", background: Y }} />
             <div style={{ padding: "13px 15px" }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: avoids.summary ? "10px" : 0 }}>
-                {avoids.areas.map((area) => {
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: avoidSummary ? "10px" : 0 }}>
+                {avoidAreas.map((area) => {
                   const kindMap: Record<string, string> = {
                     "incident hotspots": "INCIDENTS", "areas without camera coverage": "NO CCTV",
                     "poorly lit streets": "DARK", "isolated paths": "ISOLATED",
@@ -186,8 +189,8 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
                   );
                 })}
               </div>
-              {avoids.summary && (
-                <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoids.summary}</div>
+              {avoidSummary && (
+                <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoidSummary}</div>
               )}
             </div>
           </div>
@@ -196,7 +199,7 @@ export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, on
             <div style={{ height: "3px", background: Y }} />
             <div style={{ padding: "13px 15px" }}>
               <div style={{ color: Y, fontWeight: 700, fontSize: "17px", marginBottom: "5px" }}>Safest available route</div>
-              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoids.summary || "No specific hazards identified on this route."}</div>
+              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoidSummary || "No specific hazards identified on this route."}</div>
             </div>
           </div>
         )}
