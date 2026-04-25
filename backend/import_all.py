@@ -15,6 +15,7 @@ import sys
 import traceback
 
 from data_import import import_overlast_zones, import_gebieden, import_bag, import_veiligheidsindex, import_unsafe_areas
+from scripts import import_pointer_data
 
 STEPS = [
     ("Overlast / camera zones → Supabase", import_overlast_zones),
@@ -22,6 +23,7 @@ STEPS = [
     ("BAG building density → data/bag_density.json", import_bag),
     ("Veiligheidsindex baseline → Supabase buurt_baseline", import_veiligheidsindex),
     ("Unsafe areas (survey seed) → Supabase unsafe_areas", import_unsafe_areas),
+    ("Pointer/KRO-NCRV crowdsourced pins → Supabase unsafe_areas", import_pointer_data),
 ]
 
 
