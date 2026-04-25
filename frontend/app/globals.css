@@ -1,38 +1,75 @@
 @import "tailwindcss";
 
 :root {
-  --stella-navy: #070B35;
-  --stella-navy-card: #0D1347;
-  --stella-yellow: #FFE500;
-  --stella-yellow-dim: #ccb800;
+  --stella-blue: #000099;
+  --stella-blue-card: #001080;
+  --stella-yellow: #ffff05;
+  --stella-route-blue: #3B5BDB;
   --stella-border: rgba(255, 255, 255, 0.10);
-  --stella-muted: rgba(255, 255, 255, 0.50);
+  --stella-muted: rgba(255, 255, 255, 0.38);
 }
 
 @theme inline {
-  --color-background: var(--stella-navy);
+  --color-background: var(--stella-blue);
   --color-foreground: #ffffff;
-  --color-stella-navy: var(--stella-navy);
-  --color-stella-card: var(--stella-navy-card);
-  --color-stella-yellow: var(--stella-yellow);
-  --color-stella-yellow-dim: var(--stella-yellow-dim);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-space-grotesk), 'Space Grotesk', sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--stella-navy);
+  background: var(--stella-blue);
   color: #ffffff;
-  font-family: Arial, Helvetica, sans-serif;
-  /* Prevent overscroll bounce showing white background on iOS */
+  font-family: var(--font-space-grotesk), 'Space Grotesk', sans-serif;
   overscroll-behavior: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Leaflet CSS must be inlined for Next.js SSR compat */
+.leaflet-container {
+  font-family: var(--font-space-grotesk), 'Space Grotesk', sans-serif !important;
+  background: #000099;
+}
+.leaflet-control-attribution { display: none !important; }
+.leaflet-control-zoom { display: none !important; }
+
+@keyframes markerPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(59,91,219,0.55), 0 0 0 3px rgba(255,255,255,0.9); }
+  60%  { box-shadow: 0 0 0 9px rgba(59,91,219,0), 0 0 0 3px rgba(255,255,255,0.9); }
+  100% { box-shadow: 0 0 0 0 rgba(59,91,219,0), 0 0 0 3px rgba(255,255,255,0.9); }
+}
+.route-marker {
+  width: 16px; height: 16px;
+  background: #3B5BDB;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  animation: markerPulse 2s ease-out infinite;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.eta-sheet {
+  animation: slideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
 }
 
 .stella-input::placeholder {
   color: rgba(255, 255, 255, 0.35);
 }
 
-/* Smooth tap highlights on mobile */
-* {
-  -webkit-tap-highlight-color: transparent;
+.panel-scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
+.panel-scroll::-webkit-scrollbar { display: none; }
+
+.rating-btn {
+  transition: background 0.18s, color 0.18s, border-color 0.18s, transform 0.1s;
+}
+.rating-btn:active { transform: scale(0.94); }

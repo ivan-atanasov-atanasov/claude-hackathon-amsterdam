@@ -1,58 +1,92 @@
 "use client";
 
+import { useState } from "react";
 import { MapPreview } from "@/components/MapPreview";
 import type { RouteAvoids, RouteResponse } from "@/lib/api";
 
-function ScoreBadge({ score }: { score: number }) {
-  const color =
-    score >= 8
-      ? "#22c55e"
-      : score >= 5
-        ? "#f59e0b"
-        : "#ef4444";
-  const label = score >= 8 ? "Safe" : score >= 5 ? "Moderate" : "Caution";
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold"
-      style={{ background: color + "22", color, border: `1px solid ${color}44` }}
-    >
-      <span className="text-sm font-black">{score.toFixed(1)}</span>
-      <span>/10 · {label}</span>
-    </span>
-  );
-}
+const Y  = "#ffff05";
+const BD = "#000099";
 
 function googleMapsUrl(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
   mode: string
 ): string {
-  const travelmode = mode === "bicycling" ? "bicycling" : "walking";
-  return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=${travelmode}`;
+  const tm = mode === "bicycling" ? "bicycling" : "walking";
+  return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=${tm}`;
 }
 
-function AvoidCard({ area }: { area: string }) {
-  const kindMap: Record<string, string> = {
-    "incident hotspots": "incidents",
-    "areas without camera coverage": "no CCTV",
-    "poorly lit streets": "dark",
-    "areas with frequent incident reports": "incidents",
-    "isolated paths": "isolated",
-  };
-  const kind = kindMap[area] ?? "avoided";
-  const display = area.charAt(0).toUpperCase() + area.slice(1);
+function EtaSheet({ onClose, route }: { onClose: () => void; route: { duration_text: string; summary: string } }) {
+  const [copied, setCopied] = useState(false);
+
+  const eta = new Date();
+  const durationMin = parseInt(route.duration_text) || 15;
+  eta.setMinutes(eta.getMinutes() + durationMin);
+  const etaStr = eta.toLocaleTimeString("en-NL", { hour: "2-digit", minute: "2-digit", hour12: true });
+
+  const message = `stella. I'm on my way home ✦\nETA: ${etaStr} — ${route.duration_text} from now.\nRoute: ${route.summary || "safest path"}.`;
+
+  function handleCopy() {
+    navigator.clipboard.writeText(message).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
+
   return (
     <div
-      className="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
-      style={{ background: "rgba(255,229,0,0.06)", border: "1px solid rgba(255,229,0,0.15)" }}
+      style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 900, display: "flex", alignItems: "flex-end" }}
+      onClick={onClose}
     >
-      <span className="font-bold text-sm" style={{ color: "var(--stella-yellow)" }}>{display}</span>
-      <span
-        className="text-[10px] font-semibold uppercase tracking-wider rounded-full px-2 py-0.5"
-        style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}
+      <div
+        className="eta-sheet"
+        style={{ width: "100%", background: "#001080", borderRadius: "22px 22px 0 0", padding: "0 18px 36px" }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {kind}
-      </span>
+        <div style={{ width: "36px", height: "4px", background: "rgba(255,255,255,0.2)", borderRadius: "2px", margin: "14px auto 18px" }} />
+
+        {/* Message preview */}
+        <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: "13px", padding: "14px 15px", marginBottom: "16px", border: "1px solid rgba(255,255,255,0.1)", lineHeight: 1.65, fontSize: "15px" }}>
+          <span style={{ color: Y, fontWeight: 700 }}>stella.</span>
+          <span style={{ color: "#fff" }}> I'm on my way home ✦</span><br />
+          <span style={{ color: "#fff", fontWeight: 700 }}>ETA: {etaStr}</span>
+          <span style={{ color: "#fff" }}> — {route.duration_text} from now.</span><br />
+          <span style={{ color: "rgba(255,255,255,0.65)", fontSize: "14px" }}>Route: {route.summary || "safest path"}.</span>
+        </div>
+
+        {[
+          { label: "WhatsApp",                   bg: "#25D366", icon: "💬", href: `https://wa.me/?text=${encodeURIComponent(message)}` },
+          { label: "Messages",                   bg: "#34C759", icon: "✉️", href: `sms:?body=${encodeURIComponent(message)}` },
+          { label: "Signal",                     bg: "#2C6BED", icon: "🔒", href: `https://signal.me/#p/${encodeURIComponent(message)}` },
+          { label: copied ? "Copied!" : "Copy message", bg: "rgba(255,255,255,0.1)", icon: "📋", onClick: handleCopy },
+        ].map((btn) => (
+          btn.href ? (
+            <a key={btn.label} href={btn.href} target="_blank" rel="noopener noreferrer" style={{
+              display: "flex", alignItems: "center", gap: "11px",
+              width: "100%", padding: "15px 18px", borderRadius: "13px",
+              background: btn.bg, marginBottom: "8px",
+              color: "#fff", fontFamily: "inherit", fontWeight: 700, fontSize: "16px",
+              textDecoration: "none",
+            }}>
+              <span style={{ fontSize: "18px" }}>{btn.icon}</span>{btn.label}
+            </a>
+          ) : (
+            <button key={btn.label} onClick={btn.onClick} style={{
+              width: "100%", padding: "15px 18px", borderRadius: "13px",
+              background: btn.bg, border: "none", marginBottom: "8px",
+              color: "#fff", fontFamily: "inherit", fontWeight: 700, fontSize: "16px",
+              cursor: "pointer", display: "flex", alignItems: "center", gap: "11px",
+            }}>
+              <span style={{ fontSize: "18px" }}>{btn.icon}</span>{btn.label}
+            </button>
+          )
+        ))}
+
+        <button onClick={onClose} style={{
+          width: "100%", padding: "14px", borderRadius: "12px",
+          background: "transparent", border: "none",
+          color: "rgba(255,255,255,0.38)", fontFamily: "inherit", fontSize: "16px", cursor: "pointer",
+        }}>Cancel</button>
+      </div>
     </div>
   );
 }
@@ -61,126 +95,161 @@ interface Props {
   result: RouteResponse;
   tipsOverride?: { avoids: RouteAvoids; tips: string[]; ai_status: "ok" | "fallback" } | null;
   tipsLoading?: boolean;
+  timeChanged?: boolean;
+  onUpdateTips?: () => void;
   onBack: () => void;
   onArrived: () => void;
 }
 
-export function RouteResult({ result, tipsOverride, tipsLoading, onBack, onArrived }: Props) {
+export function RouteResult({ result, tipsOverride, tipsLoading, timeChanged, onUpdateTips, onBack, onArrived }: Props) {
+  const [etaOpen, setEtaOpen] = useState(false);
   const { route, safety_score, mode } = result;
 
   const avoids = tipsOverride?.avoids ?? result.avoids;
-  const tips = tipsOverride?.tips ?? result.tips;
+  const tips   = tipsOverride?.tips   ?? result.tips;
   const ai_status = tipsOverride?.ai_status ?? result.ai_status;
 
+  const routeLabel = `${route.summary || "Amsterdam"} · ${route.duration_text}`;
+
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: "var(--stella-navy)" }}>
-      {/* Map — full width, fixed height */}
-      <div className="w-full relative" style={{ height: "240px" }}>
+    <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: BD, position: "relative", overflow: "hidden", fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif" }}>
+
+      {/* Time-changed banner */}
+      {timeChanged && (
+        <div style={{ background: "rgba(255,255,5,0.12)", borderBottom: "1px solid rgba(255,255,5,0.25)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "10px 18px" }}>
+          <span style={{ color: Y, fontSize: "13px", fontWeight: 500 }}>Time changed — update tips?</span>
+          <button onClick={onUpdateTips} disabled={tipsLoading}
+            style={{ background: Y, border: "none", color: "#000", fontWeight: 700, fontSize: "12px", padding: "6px 14px", borderRadius: "10px", cursor: "pointer", fontFamily: "inherit", opacity: tipsLoading ? 0.6 : 1 }}>
+            {tipsLoading ? "Updating…" : "Update"}
+          </button>
+        </div>
+      )}
+
+      {/* Map */}
+      <div style={{ position: "relative", height: "340px", flexShrink: 0 }}>
         <MapPreview
           polyline={route.polyline}
           startLocation={route.start_location}
           endLocation={route.end_location}
-          dark
+          showRoute
         />
+
         {/* Back button */}
-        <button
-          onClick={onBack}
-          className="absolute top-3 left-3 z-10 flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl"
-          style={{ background: "rgba(7,11,53,0.85)", color: "rgba(255,255,255,0.9)", backdropFilter: "blur(4px)" }}
-        >
-          ← Back
-        </button>
+        <button onClick={onBack} style={{
+          position: "absolute", top: 12, left: 12, zIndex: 600,
+          background: BD, borderRadius: "20px", padding: "7px 14px",
+          color: "rgba(255,255,255,0.8)", fontWeight: 700, fontSize: "13px",
+          border: "1px solid rgba(255,255,255,0.14)", cursor: "pointer",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.5)", fontFamily: "inherit",
+        }}>← Back</button>
+
+        {/* Route pill */}
+        <div style={{
+          position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)",
+          background: BD, borderRadius: "20px", padding: "7px 15px",
+          color: Y, fontWeight: 700, fontSize: "13px",
+          zIndex: 600, whiteSpace: "nowrap",
+          border: "1px solid rgba(255,255,255,0.14)",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
+        }}>{routeLabel}</div>
+
+        {/* Safety score badge */}
+        <div style={{
+          position: "absolute", top: 12, right: 12, zIndex: 600,
+          background: safety_score >= 7 ? "rgba(34,197,94,0.9)" : safety_score >= 5 ? "rgba(245,158,11,0.9)" : "rgba(239,68,68,0.9)",
+          borderRadius: "20px", padding: "7px 12px",
+          color: "#fff", fontWeight: 700, fontSize: "13px",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
+        }}>{safety_score.toFixed(1)}/10</div>
+
+        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "56px", background: `linear-gradient(transparent, ${BD})`, pointerEvents: "none", zIndex: 500 }} />
       </div>
 
-      {/* Content card */}
-      <div className="flex-1 flex flex-col px-5 py-5 gap-5 max-w-md mx-auto w-full">
-        {/* Route meta */}
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest mb-1" style={{ color: "var(--stella-muted)" }}>
-              Safest route
-            </p>
-            <p className="text-sm font-medium text-white">
-              {route.distance_text} · {route.duration_text}
-            </p>
-          </div>
-          <ScoreBadge score={safety_score} />
+      {/* Panel */}
+      <div className="panel-scroll" style={{ flex: 1, padding: "14px 18px 24px", display: "flex", flexDirection: "column", gap: "11px" }}>
+
+        <div style={{ color: "rgba(255,255,255,0.38)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.13em", textTransform: "uppercase" }}>
+          Route avoids
         </div>
 
-        {/* Route avoids */}
-        {avoids.areas.length > 0 && (
-          <div className={`flex flex-col gap-2 transition-opacity ${tipsLoading ? "opacity-50" : ""}`}>
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: "var(--stella-muted)" }}>
-              Route avoids
-            </p>
-            {avoids.areas.map((area) => (
-              <AvoidCard key={area} area={area} />
-            ))}
-            {avoids.summary && (
-              <p className="text-sm mt-1 leading-relaxed" style={{ color: "rgba(255,255,255,0.65)" }}>
-                {avoids.summary}
-              </p>
-            )}
+        {/* Avoidance cards */}
+        {avoids.areas.length > 0 ? avoids.areas.map((area) => {
+          const kindMap: Record<string, string> = {
+            "incident hotspots": "INCIDENTS", "areas without camera coverage": "NO CCTV",
+            "poorly lit streets": "DARK", "isolated paths": "ISOLATED",
+            "areas with frequent incident reports": "INCIDENTS",
+          };
+          const kind = kindMap[area] ?? "AVOIDED";
+          const display = area.charAt(0).toUpperCase() + area.slice(1);
+          return (
+            <div key={area} style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div style={{ height: "3px", background: Y }} />
+              <div style={{ padding: "13px 15px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                <div>
+                  <div style={{ color: Y, fontWeight: 700, fontSize: "20px", marginBottom: "5px" }}>{display}</div>
+                  {avoids.summary && <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.45 }}>{avoids.summary}</div>}
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.1)", borderRadius: "7px", padding: "4px 9px", color: "rgba(255,255,255,0.55)", fontSize: "11px", fontWeight: 700, flexShrink: 0, marginTop: "2px" }}>{kind}</div>
+              </div>
+            </div>
+          );
+        }) : (
+          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ height: "3px", background: Y }} />
+            <div style={{ padding: "13px 15px" }}>
+              <div style={{ color: Y, fontWeight: 700, fontSize: "20px", marginBottom: "5px" }}>Safest available route</div>
+              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.45 }}>{avoids.summary || "No specific hazards on this route."}</div>
+            </div>
           </div>
         )}
 
-        {/* AI Tip */}
+        {/* AI TIP */}
         {tips.length > 0 && (
-          <div
-            className={`rounded-2xl px-4 py-4 flex flex-col gap-3 transition-opacity ${tipsLoading ? "opacity-50" : ""}`}
-            style={{ background: "var(--stella-navy-card)", border: "1px solid var(--stella-border)" }}
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className="text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full"
-                style={{ background: "var(--stella-yellow)", color: "var(--stella-navy)" }}
-              >
-                ✦ AI tip{ai_status === "fallback" ? " (general)" : ""}
+          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", padding: "13px 15px", border: "1px solid rgba(255,255,255,0.07)", opacity: tipsLoading ? 0.55 : 1, transition: "opacity 0.2s" }}>
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: "5px",
+              background: "linear-gradient(125deg, rgba(110,70,210,0.85) 0%, rgba(190,80,210,0.85) 100%)",
+              borderRadius: "20px", padding: "3px 11px", marginBottom: "9px",
+            }}>
+              <span style={{ color: "#fff", fontSize: "10px", fontWeight: 700, letterSpacing: "0.05em" }}>
+                ✦ AI TIP{ai_status === "fallback" ? " (general)" : ""}{tipsLoading ? " — updating…" : ""}
               </span>
-              {tipsLoading && (
-                <span className="text-xs" style={{ color: "var(--stella-muted)" }}>updating…</span>
-              )}
             </div>
-            <ul className="flex flex-col gap-2.5">
-              {tips.map((tip, i) => (
-                <li key={i} className="flex gap-2.5 text-sm" style={{ color: "rgba(255,255,255,0.8)" }}>
-                  <span
-                    className="mt-0.5 h-4 w-4 shrink-0 rounded-full flex items-center justify-center text-[9px] font-black"
-                    style={{ background: "rgba(255,229,0,0.15)", color: "var(--stella-yellow)" }}
-                  >
-                    {i + 1}
-                  </span>
-                  {tip}
-                </li>
-              ))}
-            </ul>
+            <p style={{ color: "rgba(255,255,255,0.82)", fontSize: "14px", lineHeight: 1.55 }}>
+              {tips[0]}
+            </p>
+            {tips.slice(1).map((tip, i) => (
+              <p key={i} style={{ color: "rgba(255,255,255,0.65)", fontSize: "13px", lineHeight: 1.5, marginTop: "8px" }}>{tip}</p>
+            ))}
           </div>
         )}
 
         {/* Action buttons */}
-        <div className="flex flex-col gap-2 mt-auto pt-2">
-          <button
-            onClick={onArrived}
-            className="w-full py-3.5 rounded-2xl font-bold text-sm transition-opacity hover:opacity-90"
-            style={{ background: "var(--stella-yellow)", color: "var(--stella-navy)" }}
-          >
-            📍 I&apos;ve arrived — check in
-          </button>
-          <a
-            href={googleMapsUrl(route.start_location, route.end_location, mode)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full py-3.5 rounded-2xl font-semibold text-sm text-center transition-colors hover:opacity-80"
-            style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid var(--stella-border)",
-              color: "rgba(255,255,255,0.85)",
-            }}
-          >
-            Open in Google Maps →
-          </a>
+        <div style={{ display: "flex", gap: "10px", marginTop: "auto", paddingTop: "6px" }}>
+          <button onClick={() => setEtaOpen(true)} style={{
+            flex: "0 0 auto", padding: "14px 16px", borderRadius: "12px",
+            background: "transparent", border: "1.5px solid rgba(255,255,255,0.3)",
+            color: "#fff", fontFamily: "inherit", fontWeight: 700, fontSize: "14px",
+            cursor: "pointer", display: "flex", alignItems: "center", gap: "7px", whiteSpace: "nowrap",
+          }}>📍 Send ETA</button>
+          <button onClick={onArrived} style={{
+            flex: 1, padding: "14px", borderRadius: "12px",
+            background: Y, border: "none",
+            color: "#000", fontFamily: "inherit", fontWeight: 700, fontSize: "14px",
+            cursor: "pointer", whiteSpace: "nowrap",
+          }}>Open in Google Maps →</button>
         </div>
+
+        {/* Hidden real Google Maps link */}
+        <a
+          href={googleMapsUrl(route.start_location, route.end_location, mode)}
+          id="gmaps-link" target="_blank" rel="noopener noreferrer"
+          style={{ display: "none" }}
+        />
       </div>
+
+      {/* ETA bottom sheet */}
+      {etaOpen && <EtaSheet onClose={() => setEtaOpen(false)} route={route} />}
     </div>
   );
 }
