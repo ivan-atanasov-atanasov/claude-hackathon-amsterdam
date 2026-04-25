@@ -122,7 +122,7 @@ export function RouteResult({ result, fromAddress, toAddress, tipsOverride, tips
 
   // Always use the deterministic scorer's areas — they come from hotspot data
   // and are reliable. Only take the AI's narrative summary when available.
-  const avoidAreas   = result.avoids.areas;
+  const avoidAreas   = result.avoids?.areas ?? [];
   const avoidSummary = tipsOverride?.avoids?.summary || result.avoids.summary;
   const tips         = tipsOverride?.tips ?? result.tips;
   const ai_status    = tipsOverride?.ai_status ?? result.ai_status;
@@ -205,43 +205,42 @@ export function RouteResult({ result, fromAddress, toAddress, tipsOverride, tips
           Route avoids
         </div>
 
-        {/* Avoidance cards */}
-        {avoidAreas.length > 0 ? (
-          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
-            <div style={{ height: "3px", background: Y }} />
-            <div style={{ padding: "13px 15px" }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: avoidSummary ? "10px" : 0 }}>
-                {avoidAreas.map((area) => {
-                  const kindMap: Record<string, string> = {
-                    "incident hotspots": "INCIDENTS", "areas without camera coverage": "NO CCTV",
-                    "poorly lit streets": "DARK", "isolated paths": "ISOLATED",
-                    "areas with frequent incident reports": "INCIDENTS",
-                  };
-                  const kind = kindMap[area] ?? "AVOIDED";
-                  return (
-                    <div key={area} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span style={{ color: Y, fontWeight: 700, fontSize: "17px" }}>
-                        {area.charAt(0).toUpperCase() + area.slice(1)}
-                      </span>
-                      <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "6px", padding: "2px 7px", color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: 700 }}>{kind}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              {avoidSummary && (
-                <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoidSummary}</div>
-              )}
-            </div>
+        {/* Avoidance card — no overflow:hidden (clips content in mobile Safari flex layout) */}
+        <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", border: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ height: "3px", background: Y, borderRadius: "14px 14px 0 0" }} />
+          <div style={{ padding: "13px 15px" }}>
+            {avoidAreas.length > 0 ? (
+              <>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: avoidSummary ? "10px" : 0 }}>
+                  {avoidAreas.map((area) => {
+                    const kindMap: Record<string, string> = {
+                      "incident hotspots": "INCIDENTS", "areas without camera coverage": "NO CCTV",
+                      "poorly lit streets": "DARK", "isolated paths": "ISOLATED",
+                      "areas with frequent incident reports": "INCIDENTS",
+                    };
+                    const kind = kindMap[area] ?? "AVOIDED";
+                    return (
+                      <div key={area} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span style={{ color: Y, fontWeight: 700, fontSize: "17px" }}>
+                          {area.charAt(0).toUpperCase() + area.slice(1)}
+                        </span>
+                        <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "6px", padding: "2px 7px", color: "rgba(255,255,255,0.5)", fontSize: "10px", fontWeight: 700 }}>{kind}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {avoidSummary && (
+                  <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoidSummary}</div>
+                )}
+              </>
+            ) : (
+              <>
+                <div style={{ color: Y, fontWeight: 700, fontSize: "17px", marginBottom: "5px" }}>Safest available route</div>
+                <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoidSummary || "No specific hazards identified on this route."}</div>
+              </>
+            )}
           </div>
-        ) : (
-          <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: "14px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
-            <div style={{ height: "3px", background: Y }} />
-            <div style={{ padding: "13px 15px" }}>
-              <div style={{ color: Y, fontWeight: 700, fontSize: "17px", marginBottom: "5px" }}>Safest available route</div>
-              <div style={{ color: "rgba(255,255,255,0.55)", fontSize: "13px", lineHeight: 1.5 }}>{avoidSummary || "No specific hazards identified on this route."}</div>
-            </div>
-          </div>
-        )}
+        </div>
 
         {/* AI TIP */}
         {tips.length > 0 && (
