@@ -64,7 +64,6 @@ export default function MapPreviewInner({
     zonesRef.current.forEach(c => c.remove());
     zonesRef.current = [];
     if (!on) return;
-    const renderer = L.canvas();
     cellsRef.current.forEach((cell) => {
       const intensity = cellIntensity(cell);
       if (!intensity) return;
@@ -81,7 +80,6 @@ export default function MapPreviewInner({
           fillColor: "#dd2200",
           fillOpacity: opacity,
           interactive: false,
-          renderer,
         }).addTo(map);
         zonesRef.current.push(c);
       });
@@ -120,11 +118,9 @@ export default function MapPreviewInner({
 
       if (showRoute && polyline) {
         const coords = decodePolyline(polyline);
-        const altCoords = alternativePolyline ? decodePolyline(alternativePolyline) : [];
 
         if (coords.length > 1) {
-          const allCoords = altCoords.length > 1 ? [...coords, ...altCoords] : coords;
-          const bounds = L.latLngBounds(allCoords);
+          const bounds = L.latLngBounds(coords);
           map.fitBounds(bounds, { padding: [32, 32] });
 
           // Fetch safety grid and render zones
@@ -139,17 +135,6 @@ export default function MapPreviewInner({
               applyZones(L, map, showZonesRef.current);
             })
             .catch(() => {});
-        }
-
-        // Alternative route — solid orange, drawn beneath safe route
-        if (altCoords.length > 1) {
-          L.polyline(altCoords, {
-            color: "#FF8800",
-            weight: 4,
-            opacity: 0.9,
-            lineJoin: "round",
-            lineCap: "round",
-          }).addTo(map);
         }
 
         L.polyline(coords, {
