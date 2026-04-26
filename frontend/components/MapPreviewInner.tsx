@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import "leaflet/dist/leaflet.css";
 
 function decodePolyline(encoded: string): [number, number][] {
@@ -20,9 +20,10 @@ function decodePolyline(encoded: string): [number, number][] {
 
 interface GridCell { lat: number; lng: number; overview_score: number; hotspot_penalty: number; }
 
+// Only render confirmed Pointer hotspots — drop generic low-score cells
+// to keep the map uncluttered.
 function cellIntensity(cell: GridCell): number | null {
-  if (cell.hotspot_penalty > 0)   return 1.0;
-  if (cell.overview_score < 0.45) return 0.7;
+  if (cell.hotspot_penalty > 0) return 1.0;
   return null;
 }
 
@@ -35,13 +36,23 @@ function distM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Keep cells within threshold of the given route
-function filterNearRoute(cells: GridCell[], route: [number, number][], thresholdM = 160): GridCell[] {
+// Donut band: must be at least 150 m from the route (not on it) and within 400 m.
+// Cap at 5 hotspots so the map stays readable.
+function filterAvoidedZones(cells: GridCell[], route: [number, number][], minM = 150, maxM = 400, cap = 5): GridCell[] {
   const sample = route.filter((_, i) => i % 5 === 0);
   if (sample.length === 0) return [];
-  return cells.filter(cell =>
-    sample.some(([lat, lng]) => distM(cell.lat, cell.lng, lat, lng) < thresholdM)
-  );
+  const result: GridCell[] = [];
+  for (const cell of cells) {
+    if (result.length >= cap) break;
+    let closest = Infinity;
+    for (const [lat, lng] of sample) {
+      const d = distM(cell.lat, cell.lng, lat, lng);
+      if (d < closest) closest = d;
+      if (closest < minM) break;
+    }
+    if (closest >= minM && closest <= maxM) result.push(cell);
+  }
+  return result;
 }
 
 interface Props {
@@ -72,25 +83,26 @@ export default function MapPreviewInner({
   const mapRef = useRef<ReturnType<LeafletType["map"]> | null>(null);
   const idRef = useRef(`_stella_map_${++counter}`);
   const zonesRef = useRef<LeafletCircle[]>([]);
+  const cellsRef = useRef<GridCell[]>([]);
+  const routeCoordsRef = useRef<[number, number][]>([]);
+  const leafletRef = useRef<LeafletType | null>(null);
+  const [showZones, setShowZones] = useState(true);
+  const showZonesRef = useRef(true);
 
-  const renderDangerZones = useCallback((
-    L: LeafletType,
-    map: ReturnType<LeafletType["map"]>,
-    cells: GridCell[],
-    altCoords: [number, number][],
-  ) => {
+  const applyZones = useCallback((L: LeafletType, map: ReturnType<LeafletType["map"]>, on: boolean) => {
     zonesRef.current.forEach(c => c.remove());
     zonesRef.current = [];
-
-    const nearby = filterNearRoute(cells, altCoords);
-    nearby.forEach((cell) => {
+    if (!on) return;
+    const avoided = filterAvoidedZones(cellsRef.current, routeCoordsRef.current);
+    avoided.forEach((cell) => {
       const intensity = cellIntensity(cell);
       if (!intensity) return;
+      // Muted halos — background context, not the hero element
       const rings = [
-        { r: 110, opacity: 0.05 * intensity },
-        { r: 60,  opacity: 0.12 * intensity },
-        { r: 30,  opacity: 0.22 * intensity },
-        { r: 14,  opacity: 0.38 * intensity },
+        { r: 110, opacity: 0.03 * intensity },
+        { r: 60,  opacity: 0.07 * intensity },
+        { r: 30,  opacity: 0.14 * intensity },
+        { r: 14,  opacity: 0.22 * intensity },
       ];
       rings.forEach(({ r, opacity }) => {
         const c = L.circle([cell.lat, cell.lng], {
@@ -110,6 +122,7 @@ export default function MapPreviewInner({
 
     import("leaflet").then((L) => {
       if (!divRef.current || mapRef.current) return;
+      leafletRef.current = L;
       divRef.current.id = idRef.current;
 
       const center: [number, number] = mapCenter ?? (
@@ -136,55 +149,41 @@ export default function MapPreviewInner({
 
       if (showRoute && polyline) {
         const coords = decodePolyline(polyline);
-        const altCoords = alternativePolyline ? decodePolyline(alternativePolyline) : null;
+        routeCoordsRef.current = coords;
 
         if (coords.length > 1) {
           const bounds = L.latLngBounds(coords);
-          if (altCoords) bounds.extend(altCoords);
           map.fitBounds(bounds, { padding: [32, 32] });
 
-          // Fetch safety grid — only render zones on the rejected route
-          if (altCoords) {
-            const sw = bounds.getSouthWest();
-            const ne = bounds.getNorthEast();
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-            fetch(`${apiUrl}/safety-grid?sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`)
-              .then((r) => r.json())
-              .then(({ cells }: { cells: GridCell[] }) => {
-                if (!mapRef.current) return;
-                renderDangerZones(L, map, cells, altCoords);
-              })
-              .catch(() => {});
-          }
-
-          // Rejected route — drawn first so it sits behind everything
-          if (altCoords) {
-            L.polyline(altCoords, {
-              color: "#7a0000",
-              weight: 4,
-              opacity: 0.45,
-              dashArray: "6 8",
-              lineJoin: "round",
-              lineCap: "round",
-            }).addTo(map);
-          }
-
-          // Chosen route — glow then solid line on top
-          L.polyline(coords, {
-            color: "#5B8DEF",
-            weight: 18,
-            opacity: 0.18,
-            lineJoin: "round",
-            lineCap: "round",
-          }).addTo(map);
-          L.polyline(coords, {
-            color: "#3B5BDB",
-            weight: 5,
-            opacity: 1,
-            lineJoin: "round",
-            lineCap: "round",
-          }).addTo(map);
+          // Fetch safety grid and render zones clipped to route proximity
+          const sw = bounds.getSouthWest();
+          const ne = bounds.getNorthEast();
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          fetch(`${apiUrl}/safety-grid?sw_lat=${sw.lat}&sw_lng=${sw.lng}&ne_lat=${ne.lat}&ne_lng=${ne.lng}`)
+            .then((r) => r.json())
+            .then(({ cells }: { cells: GridCell[] }) => {
+              if (!mapRef.current) return;
+              cellsRef.current = cells;
+              applyZones(L, map, showZonesRef.current);
+            })
+            .catch(() => {});
         }
+
+        // Glow layer underneath — signals a chosen, protected corridor
+        L.polyline(coords, {
+          color: "#5B8DEF",
+          weight: 18,
+          opacity: 0.18,
+          lineJoin: "round",
+          lineCap: "round",
+        }).addTo(map);
+        L.polyline(coords, {
+          color: "#3B5BDB",
+          weight: 5,
+          opacity: 1,
+          lineJoin: "round",
+          lineCap: "round",
+        }).addTo(map);
 
         const startIcon = L.divIcon({
           className: "",
@@ -211,9 +210,45 @@ export default function MapPreviewInner({
     };
   }, []);
 
+  // Toggle zones on/off without remounting the map
+  useEffect(() => {
+    showZonesRef.current = showZones;
+    if (!mapRef.current || !leafletRef.current) return;
+    applyZones(leafletRef.current, mapRef.current, showZones);
+  }, [showZones, applyZones]);
+
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
       <div ref={divRef} style={{ width: "100%", height: "100%" }} />
+      {showRoute && (
+        <button
+          onClick={() => setShowZones(v => !v)}
+          style={{
+            position: "absolute", bottom: 14, right: 12, zIndex: 600,
+            display: "flex", alignItems: "center", gap: "7px",
+            background: showZones ? "rgba(10,10,40,0.88)" : "rgba(10,10,40,0.78)",
+            border: showZones
+              ? "1.5px solid rgba(255,255,255,0.28)"
+              : "1.5px solid rgba(255,255,255,0.18)",
+            borderRadius: "20px", padding: "7px 13px",
+            color: "#fff",
+            fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif",
+            fontWeight: 700, fontSize: "12px", cursor: "pointer",
+            backdropFilter: "blur(6px)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+            transition: "background 0.2s, box-shadow 0.2s, border-color 0.2s",
+            letterSpacing: "0.02em",
+          }}
+        >
+          <span style={{
+            width: 9, height: 9, borderRadius: "50%",
+            background: showZones ? "#cc3300" : "rgba(255,255,255,0.3)",
+            display: "inline-block", flexShrink: 0,
+            transition: "background 0.2s",
+          }} />
+          {showZones ? "Avoided zones" : "Show avoided zones"}
+        </button>
+      )}
     </div>
   );
 }
