@@ -24,7 +24,8 @@ function samplePolylineWaypoints(encoded: string, max = 8): string {
   const sampled = inner.length <= max
     ? inner
     : Array.from({ length: max }, (_, k) => inner[Math.round(k * (inner.length - 1) / (max - 1))]);
-  return sampled.map(([a, b]) => `via:${a},${b}`).join("|");
+  // Plain lat,lng pairs — no via: prefix (not supported in Maps URL API)
+  return sampled.map(([a, b]) => `${a.toFixed(5)},${b.toFixed(5)}`).join("|");
 }
 
 function googleMapsUrl(
@@ -41,7 +42,8 @@ function googleMapsUrl(
   let url = `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=${tm}`;
   if (polyline) {
     const wps = samplePolylineWaypoints(polyline);
-    if (wps) url += `&waypoints=${encodeURIComponent(wps)}`;
+    // Append unencoded so | separators are preserved
+    if (wps) url += `&waypoints=${wps}`;
   }
   return url;
 }
