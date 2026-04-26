@@ -199,7 +199,7 @@ export default function Home() {
           type="datetime-local"
           value={departureTime}
           onChange={(e) => { setDepartureTime(e.target.value); setUseNow(false); }}
-          style={{ position: "fixed", opacity: 0, width: "1px", height: "1px", top: "-200px", pointerEvents: "none" }}
+          style={{ position: "fixed", opacity: 0, width: "1px", height: "1px", top: "50%", left: "50%", pointerEvents: "none" }}
         />
 
         {/* Time row */}
