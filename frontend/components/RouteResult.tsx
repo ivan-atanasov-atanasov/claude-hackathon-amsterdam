@@ -8,46 +8,13 @@ const Y  = "#ffff05";
 const BD = "#000099";
 
 
-function decodePolyline(encoded: string): [number, number][] {
-  const pts: [number, number][] = [];
-  let i = 0, lat = 0, lng = 0;
-  while (i < encoded.length) {
-    let b, shift = 0, result = 0;
-    do { b = encoded.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-    lat += result & 1 ? ~(result >> 1) : result >> 1;
-    shift = 0; result = 0;
-    do { b = encoded.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-    lng += result & 1 ? ~(result >> 1) : result >> 1;
-    pts.push([lat / 1e5, lng / 1e5]);
-  }
-  return pts;
-}
-
 function googleMapsUrl(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
   mode: string,
-  polyline?: string,
 ): string {
   const tm = mode === "bicycling" ? "bicycling" : "walking";
-  const o = `${origin.lat},${origin.lng}`;
-  const d = `${destination.lat},${destination.lng}`;
-  let url = `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=${tm}`;
-  if (polyline) {
-    const pts = decodePolyline(polyline);
-    const inner = pts.slice(1, -1);
-    if (inner.length > 0) {
-      // Sample up to 6 evenly-spaced interior points as via: hints.
-      // via: waypoints are pass-through (not stops), so they guide the route
-      // without failing if a point is slightly off-road.
-      const n = Math.min(6, inner.length);
-      const sampled = Array.from({ length: n }, (_, k) =>
-        inner[Math.round(k * (inner.length - 1) / Math.max(n - 1, 1))]
-      );
-      url += `&waypoints=${sampled.map(([a, b]) => `via:${a.toFixed(5)},${b.toFixed(5)}`).join("|")}`;
-    }
-  }
-  return url;
+  return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=${tm}`;
 }
 
 function EtaSheet({ onClose, route, toAddress }: { onClose: () => void; route: { duration_text: string; summary: string }; toAddress?: string }) {
@@ -323,7 +290,7 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
             cursor: "pointer", display: "flex", alignItems: "center", gap: "7px", whiteSpace: "nowrap",
           }}>📍 Send ETA</button>
           <a
-            href={googleMapsUrl(route.start_location, route.end_location, mode, route.polyline)}
+            href={googleMapsUrl(route.start_location, route.end_location, mode)}
             target="_blank"
             rel="noopener noreferrer"
             style={{
