@@ -131,7 +131,7 @@ const KIND_COLOR: Record<string, string> = {
 export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived }: Props) {
   const [etaOpen, setEtaOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const { route, mode, avoidance_diff } = result;
+  const { route, mode, avoidance_diff, alternative_route, chose_safer_than_google } = result;
 
   const routeLabel = route.duration_text;
 
@@ -145,6 +145,7 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
       <div style={{ position: "relative", height: "min(260px, 38dvh)", flexShrink: 0 }}>
         <MapPreview
           polyline={route.polyline}
+          alternativePolyline={chose_safer_than_google && alternative_route ? alternative_route.polyline : undefined}
           startLocation={route.start_location}
           endLocation={route.end_location}
           showRoute
