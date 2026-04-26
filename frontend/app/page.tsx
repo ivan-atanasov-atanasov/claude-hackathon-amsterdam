@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useRef } from "react";
 import { fetchRoute } from "@/lib/api";
 import type { RouteResponse } from "@/lib/api";
 import { AddressInput } from "@/components/AddressInput";
@@ -55,19 +55,11 @@ export default function Home() {
   const [mode, setMode] = useState<"bicycling" | "walking">("bicycling");
   const [useNow, setUseNow] = useState(true);
   const [departureTime, setDepartureTime] = useState(defaultDepartureTime);
-  const [showTimePicker, setShowTimePicker] = useState(false);
   const [result, setResult] = useState<RouteResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const dateInputRef = useRef<HTMLInputElement>(null);
-
-  // Auto-open the native date picker as soon as the row appears
-  useEffect(() => {
-    if (showTimePicker) {
-      setTimeout(() => dateInputRef.current?.showPicker?.(), 50);
-    }
-  }, [showTimePicker]);
 
   const handleUseLocation = useCallback(async () => {
     if (!navigator.geolocation) { setError("Geolocation not supported."); return; }
@@ -120,7 +112,7 @@ export default function Home() {
   }
 
   // Screen 1 — Input
-  const timeLabel = useNow ? `Now — ${formatTime(defaultDepartureTime())}` : formatTime(departureTime);
+  const timeLabel = useNow ? "Now" : formatTime(departureTime);
 
   return (
     <div style={{ height: "100dvh", display: "flex", flexDirection: "column", background: BD, fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif" }}>
@@ -201,36 +193,33 @@ export default function Home() {
           ))}
         </div>
 
+        {/* Hidden datetime input — always in DOM so showPicker() works */}
+        <input
+          ref={dateInputRef}
+          type="datetime-local"
+          value={departureTime}
+          onChange={(e) => { setDepartureTime(e.target.value); setUseNow(false); }}
+          style={{ position: "fixed", opacity: 0, width: "1px", height: "1px", top: "-200px", pointerEvents: "none" }}
+        />
+
         {/* Time row */}
-        <div
-          style={{ background: "rgba(255,255,255,0.07)", borderRadius: "12px", padding: "13px 15px", border: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}
-          onClick={() => setShowTimePicker((v) => !v)}
-        >
+        <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: "12px", padding: "13px 15px", border: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ color: "#fff", fontSize: "15px" }}>{timeLabel}</span>
-          <span style={{ color: Y, fontSize: "15px", fontWeight: 700 }}>Change time</span>
+          {useNow ? (
+            <button type="button" onClick={() => dateInputRef.current?.showPicker?.()}
+              style={{ background: "none", border: "none", color: Y, fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
+              Change time
+            </button>
+          ) : (
+            <button type="button" onClick={() => { setUseNow(true); setDepartureTime(defaultDepartureTime()); }}
+              style={{ background: "none", border: "none", color: Y, fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
+              Use Now
+            </button>
+          )}
         </div>
 
-        {/* Time picker */}
-        {showTimePicker && (
-          <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: "12px", padding: "14px 15px", border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexDirection: "column", gap: "8px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.1em" }}>DEPARTURE TIME</span>
-              <button type="button" onClick={() => { setDepartureTime(defaultDepartureTime()); setUseNow(true); setShowTimePicker(false); }}
-                style={{ background: "none", border: "none", color: Y, fontWeight: 700, fontSize: "13px", cursor: "pointer", fontFamily: "inherit" }}>
-                Use Now
-              </button>
-            </div>
-            <input
-              ref={dateInputRef}
-              type="datetime-local"
-              value={departureTime}
-              onChange={(e) => { setDepartureTime(e.target.value); setUseNow(false); }}
-              style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "8px", color: "#fff", padding: "10px 12px", fontSize: "14px", fontFamily: "inherit", colorScheme: "dark", width: "100%" }}
-            />
-            {!useNow && isPast(departureTime) && (
-              <p style={{ color: "rgba(251,191,36,0.85)", fontSize: "12px" }}>Past time — scores reflect those conditions.</p>
-            )}
-          </div>
+        {!useNow && isPast(departureTime) && (
+          <p style={{ color: "rgba(251,191,36,0.85)", fontSize: "12px", margin: 0 }}>Past time — scores reflect those conditions.</p>
         )}
 
         {error && (

@@ -21,9 +21,8 @@ function decodePolyline(encoded: string): [number, number][] {
 interface GridCell { lat: number; lng: number; overview_score: number; hotspot_penalty: number; }
 
 function cellIntensity(cell: GridCell): number | null {
-  if (cell.hotspot_penalty > 0)     return 1.0;
-  if (cell.overview_score < 0.45)   return 0.9;
-  if (cell.overview_score < 0.60)   return 0.6;
+  if (cell.hotspot_penalty > 0)   return 1.0;
+  if (cell.overview_score < 0.45) return 0.7;
   return null;
 }
 
@@ -38,7 +37,7 @@ function distM(lat1: number, lng1: number, lat2: number, lng2: number): number {
 }
 
 // Only keep cells within THRESHOLD metres of any sampled route vertex
-function filterNearRoute(cells: GridCell[], route: [number, number][], thresholdM = 500): GridCell[] {
+function filterNearRoute(cells: GridCell[], route: [number, number][], thresholdM = 180): GridCell[] {
   // Subsample route to at most every 5th point for speed
   const sample = route.filter((_, i) => i % 5 === 0);
   if (sample.length === 0) return cells;
@@ -90,10 +89,10 @@ export default function MapPreviewInner({
       const intensity = cellIntensity(cell);
       if (!intensity) return;
       const rings = [
-        { r: 140, opacity: 0.06 * intensity },
-        { r: 80,  opacity: 0.15 * intensity },
-        { r: 42,  opacity: 0.38 * intensity },
-        { r: 18,  opacity: 0.65 * intensity },
+        { r: 100, opacity: 0.04 * intensity },
+        { r: 55,  opacity: 0.10 * intensity },
+        { r: 28,  opacity: 0.25 * intensity },
+        { r: 12,  opacity: 0.45 * intensity },
       ];
       rings.forEach(({ r, opacity }) => {
         const c = L.circle([cell.lat, cell.lng], {
