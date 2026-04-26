@@ -7,45 +7,16 @@ import type { RouteResponse } from "@/lib/api";
 const Y  = "#ffff05";
 const BD = "#000099";
 
-function samplePolylineWaypoints(encoded: string, max = 8): string {
-  const pts: [number, number][] = [];
-  let i = 0, lat = 0, lng = 0;
-  while (i < encoded.length) {
-    let b, shift = 0, result = 0;
-    do { b = encoded.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-    lat += result & 1 ? ~(result >> 1) : result >> 1;
-    shift = 0; result = 0;
-    do { b = encoded.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-    lng += result & 1 ? ~(result >> 1) : result >> 1;
-    pts.push([lat / 1e5, lng / 1e5]);
-  }
-  const inner = pts.slice(1, -1);
-  if (inner.length === 0) return "";
-  const sampled = inner.length <= max
-    ? inner
-    : Array.from({ length: max }, (_, k) => inner[Math.round(k * (inner.length - 1) / (max - 1))]);
-  // Plain lat,lng pairs — no via: prefix (not supported in Maps URL API)
-  return sampled.map(([a, b]) => `${a.toFixed(5)},${b.toFixed(5)}`).join("|");
-}
 
 function googleMapsUrl(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
   mode: string,
-  fromAddress?: string,
-  toAddress?: string,
-  polyline?: string,
 ): string {
   const tm = mode === "bicycling" ? "bicycling" : "walking";
-  const o = fromAddress ? encodeURIComponent(fromAddress) : `${origin.lat},${origin.lng}`;
-  const d = toAddress   ? encodeURIComponent(toAddress)   : `${destination.lat},${destination.lng}`;
-  let url = `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=${tm}`;
-  if (polyline) {
-    const wps = samplePolylineWaypoints(polyline);
-    // Append unencoded so | separators are preserved
-    if (wps) url += `&waypoints=${wps}`;
-  }
-  return url;
+  const o = `${origin.lat},${origin.lng}`;
+  const d = `${destination.lat},${destination.lng}`;
+  return `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=${tm}`;
 }
 
 function EtaSheet({ onClose, route, toAddress }: { onClose: () => void; route: { duration_text: string; summary: string }; toAddress?: string }) {
@@ -321,7 +292,7 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
             cursor: "pointer", display: "flex", alignItems: "center", gap: "7px", whiteSpace: "nowrap",
           }}>📍 Send ETA</button>
           <a
-            href={googleMapsUrl(route.start_location, route.end_location, mode, fromAddress, toAddress, route.polyline)}
+            href={googleMapsUrl(route.start_location, route.end_location, mode)}
             target="_blank"
             rel="noopener noreferrer"
             style={{
