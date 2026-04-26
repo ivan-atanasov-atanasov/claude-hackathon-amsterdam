@@ -75,19 +75,6 @@ async def get_routes(
     if status != "OK":
         raise HTTPException(status_code=400, detail=f"Directions API error: {status}")
 
-    def extract_map_waypoints(raw_route: dict, n: int = 6) -> list[dict]:
-        """Sample n evenly-spaced road-snapped step endpoints (interior only).
-        These come directly from the Directions API so they are guaranteed to
-        be on a routable road — safe to use as mandatory Google Maps waypoints."""
-        steps = raw_route["legs"][0].get("steps", [])
-        # Interior step end-locations (skip the very last step — that's the destination)
-        pts = [s["end_location"] for s in steps[:-1]]
-        if not pts:
-            return []
-        if len(pts) <= n:
-            return pts
-        return [pts[round(i * (len(pts) - 1) / (n - 1))] for i in range(n)]
-
     routes = [
         {
             "summary": r.get("summary", ""),
@@ -98,7 +85,6 @@ async def get_routes(
             "polyline": r["overview_polyline"]["points"],
             "start_location": r["legs"][0]["start_location"],
             "end_location": r["legs"][0]["end_location"],
-            "map_waypoints": extract_map_waypoints(r),
         }
         for r in data["routes"]
     ]

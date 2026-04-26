@@ -12,14 +12,9 @@ function googleMapsUrl(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
   mode: string,
-  mapWaypoints?: { lat: number; lng: number }[],
 ): string {
   const tm = mode === "bicycling" ? "bicycling" : "walking";
-  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=${tm}`;
-  if (mapWaypoints && mapWaypoints.length > 0) {
-    url += `&waypoints=${mapWaypoints.map(p => `${p.lat},${p.lng}`).join("|")}`;
-  }
-  return url;
+  return `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=${tm}`;
 }
 
 function EtaSheet({ onClose, route, toAddress }: { onClose: () => void; route: { duration_text: string; summary: string }; toAddress?: string }) {
@@ -295,7 +290,7 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
             cursor: "pointer", display: "flex", alignItems: "center", gap: "7px", whiteSpace: "nowrap",
           }}>📍 Send ETA</button>
           <a
-            href={googleMapsUrl(route.start_location, route.end_location, mode, route.map_waypoints)}
+            href={googleMapsUrl(route.start_location, route.end_location, mode)}
             target="_blank"
             rel="noopener noreferrer"
             style={{
