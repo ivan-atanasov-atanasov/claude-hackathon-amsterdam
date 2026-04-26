@@ -36,14 +36,20 @@ function distM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Only keep cells within THRESHOLD metres of any sampled route vertex
-function filterNearRoute(cells: GridCell[], route: [number, number][], thresholdM = 180): GridCell[] {
-  // Subsample route to at most every 5th point for speed
+// Keep cells in a donut band: close enough to be relevant but not on the route itself.
+// This makes danger zones appear as "nearby but avoided" rather than "on your path".
+function filterAvoidedZones(cells: GridCell[], route: [number, number][], minM = 80, maxM = 420): GridCell[] {
   const sample = route.filter((_, i) => i % 5 === 0);
   if (sample.length === 0) return cells;
-  return cells.filter(cell =>
-    sample.some(([lat, lng]) => distM(cell.lat, cell.lng, lat, lng) < thresholdM)
-  );
+  return cells.filter(cell => {
+    let closest = Infinity;
+    for (const [lat, lng] of sample) {
+      const d = distM(cell.lat, cell.lng, lat, lng);
+      if (d < closest) closest = d;
+      if (closest < minM) break;
+    }
+    return closest >= minM && closest <= maxM;
+  });
 }
 
 interface Props {
@@ -84,21 +90,22 @@ export default function MapPreviewInner({
     zonesRef.current.forEach(c => c.remove());
     zonesRef.current = [];
     if (!on) return;
-    const nearby = filterNearRoute(cellsRef.current, routeCoordsRef.current);
-    nearby.forEach((cell) => {
+    const avoided = filterAvoidedZones(cellsRef.current, routeCoordsRef.current);
+    avoided.forEach((cell) => {
       const intensity = cellIntensity(cell);
       if (!intensity) return;
+      // Muted halos — background context, not the hero element
       const rings = [
-        { r: 100, opacity: 0.04 * intensity },
-        { r: 55,  opacity: 0.10 * intensity },
-        { r: 28,  opacity: 0.25 * intensity },
-        { r: 12,  opacity: 0.45 * intensity },
+        { r: 110, opacity: 0.03 * intensity },
+        { r: 60,  opacity: 0.07 * intensity },
+        { r: 30,  opacity: 0.14 * intensity },
+        { r: 14,  opacity: 0.22 * intensity },
       ];
       rings.forEach(({ r, opacity }) => {
         const c = L.circle([cell.lat, cell.lng], {
           radius: r,
           stroke: false,
-          fillColor: "#dd2200",
+          fillColor: "#cc2200",
           fillOpacity: opacity,
           interactive: false,
         }).addTo(map);
@@ -159,6 +166,14 @@ export default function MapPreviewInner({
             .catch(() => {});
         }
 
+        // Glow layer underneath — signals a chosen, protected corridor
+        L.polyline(coords, {
+          color: "#5B8DEF",
+          weight: 18,
+          opacity: 0.18,
+          lineJoin: "round",
+          lineCap: "round",
+        }).addTo(map);
         L.polyline(coords, {
           color: "#3B5BDB",
           weight: 5,
@@ -208,28 +223,27 @@ export default function MapPreviewInner({
           style={{
             position: "absolute", bottom: 14, right: 12, zIndex: 600,
             display: "flex", alignItems: "center", gap: "7px",
-            background: showZones ? "rgba(220,34,0,0.88)" : "rgba(10,10,40,0.78)",
+            background: showZones ? "rgba(10,10,40,0.88)" : "rgba(10,10,40,0.78)",
             border: showZones
-              ? "1.5px solid rgba(255,120,80,0.6)"
+              ? "1.5px solid rgba(255,255,255,0.28)"
               : "1.5px solid rgba(255,255,255,0.18)",
             borderRadius: "20px", padding: "7px 13px",
             color: "#fff",
             fontFamily: "var(--font-space-grotesk), 'Space Grotesk', sans-serif",
             fontWeight: 700, fontSize: "12px", cursor: "pointer",
             backdropFilter: "blur(6px)",
-            boxShadow: showZones ? "0 0 16px rgba(220,34,0,0.45)" : "0 2px 8px rgba(0,0,0,0.4)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
             transition: "background 0.2s, box-shadow 0.2s, border-color 0.2s",
             letterSpacing: "0.02em",
           }}
         >
           <span style={{
             width: 9, height: 9, borderRadius: "50%",
-            background: showZones ? "#ff9980" : "rgba(255,255,255,0.3)",
+            background: showZones ? "#cc3300" : "rgba(255,255,255,0.3)",
             display: "inline-block", flexShrink: 0,
-            boxShadow: showZones ? "0 0 6px #ff6644" : "none",
             transition: "background 0.2s",
           }} />
-          {showZones ? "Safety zones on" : "Show safety zones"}
+          {showZones ? "Avoided zones" : "Show avoided zones"}
         </button>
       )}
     </div>
