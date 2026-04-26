@@ -13,9 +13,13 @@ function googleMapsUrl(
   destination: { lat: number; lng: number },
   mode: string,
   midWaypoint?: { lat: number; lng: number },
+  fromAddress?: string,
+  toAddress?: string,
 ): string {
   const tm = mode === "bicycling" ? "bicycling" : "walking";
-  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=${tm}`;
+  const o = fromAddress ? encodeURIComponent(fromAddress) : `${origin.lat},${origin.lng}`;
+  const d = toAddress   ? encodeURIComponent(toAddress)   : `${destination.lat},${destination.lng}`;
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=${tm}&dir_action=navigate`;
   if (midWaypoint) url += `&waypoints=${midWaypoint.lat},${midWaypoint.lng}`;
   return url;
 }
@@ -129,7 +133,7 @@ const KIND_COLOR: Record<string, string> = {
 export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived }: Props) {
   const [etaOpen, setEtaOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const { route, mode, avoidance_diff } = result;
+  const { route, mode, avoidance_diff, alternative_route, chose_safer_than_google } = result;
 
   const routeLabel = route.duration_text;
 
@@ -143,6 +147,7 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
       <div style={{ position: "relative", height: "min(260px, 38dvh)", flexShrink: 0 }}>
         <MapPreview
           polyline={route.polyline}
+          alternativePolyline={chose_safer_than_google && alternative_route ? alternative_route.polyline : undefined}
           startLocation={route.start_location}
           endLocation={route.end_location}
           showRoute
@@ -167,22 +172,7 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
           boxShadow: "0 2px 12px rgba(0,0,0,0.5)",
         }}>{routeLabel}</div>
 
-        {/* Reported incidents legend */}
-        <div style={{
-          position: "absolute", bottom: 52, left: 12, zIndex: 600,
-          background: "rgba(10,10,40,0.78)", borderRadius: "10px", padding: "6px 10px",
-          backdropFilter: "blur(6px)", border: "1px solid rgba(255,255,255,0.1)",
-          display: "flex", alignItems: "center", gap: "8px",
-        }}>
-          <div style={{ display: "flex", gap: "3px", alignItems: "center" }}>
-            {[0.2, 0.5, 0.8, 1].map((o, i) => (
-              <div key={i} style={{ width: 10, height: 10, borderRadius: "50%", background: `rgba(220,34,0,${o})` }} />
-            ))}
-          </div>
-          <span style={{ color: "rgba(255,255,255,0.65)", fontSize: "10px", fontWeight: 700, letterSpacing: "0.04em" }}>REPORTED INCIDENTS</span>
-        </div>
-
-        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "56px", background: `linear-gradient(transparent, ${BD})`, pointerEvents: "none", zIndex: 500 }} />
+<div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: "56px", background: `linear-gradient(transparent, ${BD})`, pointerEvents: "none", zIndex: 500 }} />
       </div>
 
       {/* Panel — minHeight:0 is required so the flex child can shrink and overflow-y:auto works */}
@@ -293,7 +283,7 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
             cursor: "pointer", display: "flex", alignItems: "center", gap: "7px", whiteSpace: "nowrap",
           }}>📍 Send ETA</button>
           <a
-            href={googleMapsUrl(route.start_location, route.end_location, mode, route.mid_waypoint)}
+            href={googleMapsUrl(route.start_location, route.end_location, mode, route.mid_waypoint, fromAddress, toAddress)}
             target="_blank"
             rel="noopener noreferrer"
             style={{
