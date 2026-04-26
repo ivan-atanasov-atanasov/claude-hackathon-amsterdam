@@ -9,16 +9,17 @@ const BD = "#000099";
 
 
 function googleMapsUrl(
+  origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
   mode: string,
   midWaypoint?: { lat: number; lng: number },
+  fromAddress?: string,
   toAddress?: string,
 ): string {
   const tm = mode === "bicycling" ? "bicycling" : "walking";
-  // No origin — Google Maps navigates from current GPS position,
-  // which enables live turn-by-turn navigation on mobile instead of a preview.
-  const d = toAddress ? encodeURIComponent(toAddress) : `${destination.lat},${destination.lng}`;
-  let url = `https://www.google.com/maps/dir/?api=1&destination=${d}&travelmode=${tm}&dir_action=navigate`;
+  const o = fromAddress ? encodeURIComponent(fromAddress) : `${origin.lat},${origin.lng}`;
+  const d = toAddress   ? encodeURIComponent(toAddress)   : `${destination.lat},${destination.lng}`;
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=${tm}&dir_action=navigate`;
   if (midWaypoint) url += `&waypoints=${midWaypoint.lat},${midWaypoint.lng}`;
   return url;
 }
@@ -282,7 +283,7 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
             cursor: "pointer", display: "flex", alignItems: "center", gap: "7px", whiteSpace: "nowrap",
           }}>📍 Send ETA</button>
           <a
-            href={googleMapsUrl(route.end_location, mode, route.mid_waypoint, toAddress)}
+            href={googleMapsUrl(route.start_location, route.end_location, mode, route.mid_waypoint, fromAddress, toAddress)}
             target="_blank"
             rel="noopener noreferrer"
             style={{
