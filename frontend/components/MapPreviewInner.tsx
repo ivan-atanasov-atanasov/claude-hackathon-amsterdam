@@ -29,16 +29,25 @@ function distM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Return up to `cap` confirmed hotspots within `maxM` of the given route
-function hotspotNearRoute(cells: GridCell[], route: [number, number][], maxM = 120, cap = 3): GridCell[] {
-  const sample = route.filter((_, i) => i % 4 === 0);
+// Return up to `cap` confirmed hotspots that are near the alternative route
+// but NOT near the chosen route (so dots never appear on Stella's path).
+function hotspotsOnlyOnAlt(
+  cells: GridCell[],
+  altRoute: [number, number][],
+  chosenRoute: [number, number][],
+  nearM = 120,
+  clearM = 100,
+  cap = 3,
+): GridCell[] {
+  const altSample    = altRoute.filter((_, i) => i % 4 === 0);
+  const chosenSample = chosenRoute.filter((_, i) => i % 4 === 0);
   const result: GridCell[] = [];
   for (const cell of cells) {
     if (cell.hotspot_penalty <= 0) continue;
     if (result.length >= cap) break;
-    if (sample.some(([lat, lng]) => distM(cell.lat, cell.lng, lat, lng) < maxM)) {
-      result.push(cell);
-    }
+    const nearAlt    = altSample.some(([lat, lng]) => distM(cell.lat, cell.lng, lat, lng) < nearM);
+    const nearChosen = chosenSample.some(([lat, lng]) => distM(cell.lat, cell.lng, lat, lng) < clearM);
+    if (nearAlt && !nearChosen) result.push(cell);
   }
   return result;
 }
@@ -116,7 +125,7 @@ export default function MapPreviewInner({
               .then(r => r.json())
               .then(({ cells }: { cells: GridCell[] }) => {
                 if (!mapRef.current) return;
-                hotspotNearRoute(cells, altCoords).forEach(cell => {
+                hotspotsOnlyOnAlt(cells, altCoords, coords).forEach(cell => {
                   const rings = [
                     { r: 90,  opacity: 0.08 },
                     { r: 45,  opacity: 0.18 },

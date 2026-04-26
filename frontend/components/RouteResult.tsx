@@ -133,7 +133,7 @@ const KIND_COLOR: Record<string, string> = {
 export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived }: Props) {
   const [etaOpen, setEtaOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
-  const { route, mode, avoidance_diff, alternative_route, chose_safer_than_google } = result;
+  const { route, mode, avoidance_diff, alternative_route, chose_safer_than_google, safety_score, alternative_safety_score } = result;
 
   const routeLabel = route.duration_text;
 
@@ -236,6 +236,18 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
                     <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "5px", padding: "2px 6px", color: "rgba(255,255,255,0.5)", fontSize: "9px", fontWeight: 700, whiteSpace: "nowrap", marginLeft: "4px", marginTop: "1px" }}>REPORTED</span>
                   </div>
                   <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "11px", lineHeight: 1.45 }}>Women-reported unsafe locations (Pointer data)</div>
+                </div>
+              </div>
+            )}
+            {chose_safer_than_google && alternative_safety_score != null && (
+              <div style={{ flex: "0 0 calc(50% - 4px)", minWidth: "140px", background: "rgba(255,255,255,0.05)", borderRadius: "13px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <div style={{ height: "3px", background: "#3B5BDB" }} />
+                <div style={{ padding: "10px 11px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "5px" }}>
+                    <span style={{ color: "#fff", fontWeight: 700, fontSize: "13px" }}>+{(safety_score - alternative_safety_score).toFixed(1)} pts safer</span>
+                    <span style={{ background: "rgba(255,255,255,0.1)", borderRadius: "5px", padding: "2px 6px", color: "rgba(255,255,255,0.5)", fontSize: "9px", fontWeight: 700, whiteSpace: "nowrap", marginLeft: "4px", marginTop: "1px" }}>SCORE</span>
+                  </div>
+                  <div style={{ color: "rgba(255,255,255,0.45)", fontSize: "11px", lineHeight: 1.45 }}>vs. fastest route ({alternative_safety_score.toFixed(1)} → {safety_score.toFixed(1)})</div>
                 </div>
               </div>
             )}
