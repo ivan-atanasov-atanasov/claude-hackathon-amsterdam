@@ -20,13 +20,13 @@ function decodePolyline(encoded: string): [number, number][] {
 
 interface GridCell { lat: number; lng: number; overview_score: number; hotspot_penalty: number; }
 
+// Only render confirmed Pointer hotspots — drop generic low-score cells
+// to keep the map uncluttered.
 function cellIntensity(cell: GridCell): number | null {
-  if (cell.hotspot_penalty > 0)   return 1.0;
-  if (cell.overview_score < 0.45) return 0.7;
+  if (cell.hotspot_penalty > 0) return 1.0;
   return null;
 }
 
-// Great-circle distance in metres (fast approximation for short distances)
 function distM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -36,20 +36,23 @@ function distM(lat1: number, lng1: number, lat2: number, lng2: number): number {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Keep cells in a donut band: close enough to be relevant but not on the route itself.
-// This makes danger zones appear as "nearby but avoided" rather than "on your path".
-function filterAvoidedZones(cells: GridCell[], route: [number, number][], minM = 80, maxM = 420): GridCell[] {
+// Donut band: must be at least 150 m from the route (not on it) and within 400 m.
+// Cap at 5 hotspots so the map stays readable.
+function filterAvoidedZones(cells: GridCell[], route: [number, number][], minM = 150, maxM = 400, cap = 5): GridCell[] {
   const sample = route.filter((_, i) => i % 5 === 0);
-  if (sample.length === 0) return cells;
-  return cells.filter(cell => {
+  if (sample.length === 0) return [];
+  const result: GridCell[] = [];
+  for (const cell of cells) {
+    if (result.length >= cap) break;
     let closest = Infinity;
     for (const [lat, lng] of sample) {
       const d = distM(cell.lat, cell.lng, lat, lng);
       if (d < closest) closest = d;
       if (closest < minM) break;
     }
-    return closest >= minM && closest <= maxM;
-  });
+    if (closest >= minM && closest <= maxM) result.push(cell);
+  }
+  return result;
 }
 
 interface Props {
