@@ -12,7 +12,7 @@ function googleMapsUrl(
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
   mode: string,
-  midWaypoint?: { lat: number; lng: number },
+  navWaypoints?: { lat: number; lng: number }[],
   fromAddress?: string,
   toAddress?: string,
 ): string {
@@ -20,7 +20,8 @@ function googleMapsUrl(
   const o = fromAddress ? encodeURIComponent(fromAddress) : `${origin.lat},${origin.lng}`;
   const d = toAddress   ? encodeURIComponent(toAddress)   : `${destination.lat},${destination.lng}`;
   let url = `https://www.google.com/maps/dir/?api=1&origin=${o}&destination=${d}&travelmode=${tm}&dir_action=navigate`;
-  if (midWaypoint) url += `&waypoints=${midWaypoint.lat},${midWaypoint.lng}`;
+  if (navWaypoints && navWaypoints.length > 0)
+    url += `&waypoints=${navWaypoints.map(p => `${p.lat},${p.lng}`).join("|")}`;
   return url;
 }
 
@@ -283,7 +284,7 @@ export function RouteResult({ result, fromAddress, toAddress, onBack, onArrived 
             cursor: "pointer", display: "flex", alignItems: "center", gap: "7px", whiteSpace: "nowrap",
           }}>📍 Send ETA</button>
           <a
-            href={googleMapsUrl(route.start_location, route.end_location, mode, route.mid_waypoint, fromAddress, toAddress)}
+            href={googleMapsUrl(route.start_location, route.end_location, mode, route.nav_waypoints, fromAddress, toAddress)}
             target="_blank"
             rel="noopener noreferrer"
             style={{
