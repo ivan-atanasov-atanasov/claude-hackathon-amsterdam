@@ -199,14 +199,14 @@ export default function Home() {
           type="datetime-local"
           value={departureTime}
           onChange={(e) => { setDepartureTime(e.target.value); setUseNow(false); }}
-          style={{ position: "fixed", opacity: 0, width: "1px", height: "1px", top: "50%", left: "50%", pointerEvents: "none" }}
+          style={{ position: "fixed", opacity: 0, width: "1px", height: "1px", top: "50%", left: "50%" }}
         />
 
         {/* Time row */}
         <div style={{ background: "rgba(255,255,255,0.07)", borderRadius: "12px", padding: "13px 15px", border: "1px solid rgba(255,255,255,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ color: "#fff", fontSize: "15px" }}>{timeLabel}</span>
           {useNow ? (
-            <button type="button" onClick={() => dateInputRef.current?.showPicker?.()}
+            <button type="button" onClick={() => { try { dateInputRef.current?.showPicker?.(); } catch { dateInputRef.current?.click(); } }}
               style={{ background: "none", border: "none", color: Y, fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", padding: 0 }}>
               Change time
             </button>
