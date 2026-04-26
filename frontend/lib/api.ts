@@ -25,6 +25,7 @@ export interface RouteResult {
   polyline: string;
   start_location: { lat: number; lng: number };
   end_location: { lat: number; lng: number };
+  map_waypoints?: { lat: number; lng: number }[];
 }
 
 export interface NamedUnsafeArea {
