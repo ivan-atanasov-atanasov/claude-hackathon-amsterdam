@@ -75,15 +75,17 @@ async def get_routes(
     if status != "OK":
         raise HTTPException(status_code=400, detail=f"Directions API error: {status}")
 
-    def mid_waypoint(raw_route: dict) -> dict | None:
-        """Return the road-snapped end_location of the middle step.
-        One waypoint is enough to pin Google Maps to the right corridor
-        without creating many intermediate stops in the UI."""
+    def nav_waypoints(raw_route: dict) -> list[dict]:
+        """Return road-snapped step end_locations at ~1/3 and ~2/3 of the route.
+        Two waypoints bracket the divergence point between alternative routes,
+        making it much more likely Google Maps follows the same corridor as Stella."""
         steps = raw_route["legs"][0].get("steps", [])
         interior = steps[:-1]  # drop last step (that's the destination)
         if not interior:
-            return None
-        return interior[len(interior) // 2]["end_location"]
+            return []
+        n = len(interior)
+        pts = [interior[n // 3], interior[(2 * n) // 3]]
+        return [s["end_location"] for s in pts]
 
     routes = [
         {
@@ -95,7 +97,7 @@ async def get_routes(
             "polyline": r["overview_polyline"]["points"],
             "start_location": r["legs"][0]["start_location"],
             "end_location": r["legs"][0]["end_location"],
-            "mid_waypoint": mid_waypoint(r),
+            "nav_waypoints": nav_waypoints(r),
         }
         for r in data["routes"]
     ]
